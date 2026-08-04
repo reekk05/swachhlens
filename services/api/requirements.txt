@@ -4,3 +4,4 @@ python-dotenv==1.0.1
 sqlalchemy==2.0.35
 psycopg[binary]==3.2.10
 supabase==2.9.1
+python-multipart==0.0.12
