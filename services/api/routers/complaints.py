@@ -37,12 +37,14 @@ async def create_complaint(
     row = result.fetchone()
     db.commit()
 
-    background_tasks.add_task(process_complaint, str(row.id))
+    background_tasks.add_task(
+        process_complaint, str(row.id), photo_bytes, photo.content_type
+    )
 
     return ComplaintCreateResponse(
         id=row.id,
         status=row.status,
-        message="Report received. AI analysis in progress.",
+        message="Report received. AI analysis is in progress.",
     )
 
 
