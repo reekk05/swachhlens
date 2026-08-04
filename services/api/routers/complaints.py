@@ -44,3 +44,33 @@ async def create_complaint(
         status=row.status,
         message="Report received. AI analysis in progress.",
     )
+
+
+from fastapi import HTTPException
+from schemas.complaint import ComplaintOut
+from typing import List
+
+
+@router.get("/{complaint_id}", response_model=ComplaintOut)
+def get_complaint(complaint_id: str, db: Session = Depends(get_db)):
+    result = db.execute(
+        text("""
+            SELECT id, status, category, volume, description, reported_at
+            FROM complaints WHERE id = :id
+        """),
+        {"id": complaint_id},
+    )
+    row = result.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+    return ComplaintOut.model_validate(row._mapping)
+
+
+@router.get("/", response_model=List[ComplaintOut])
+def list_complaints(db: Session = Depends(get_db)):
+    result = db.execute(text("""
+            SELECT id, status, category, volume, description, reported_at
+            FROM complaints ORDER BY reported_at DESC
+        """))
+    rows = result.fetchall()
+    return [ComplaintOut.model_validate(row._mapping) for row in rows]
