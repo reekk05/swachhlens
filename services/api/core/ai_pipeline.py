@@ -100,11 +100,8 @@ def process_complaint(complaint_id: str, photo_bytes: bytes, content_type: str):
         )
         db.commit()
 
-        # Duplicate detection — if matched, the ORIGINAL's report_count goes up
         duplicate_match = find_and_link_duplicate(db, complaint_id, result["category"])
 
-        # Severity for THIS complaint (uses the shared report_count if it's a duplicate,
-        # so the citizen sees the real, merged priority of the underlying issue)
         report_count = duplicate_match["report_count"] if duplicate_match else 1
 
         apply_severity_and_recommendation(
@@ -118,8 +115,6 @@ def process_complaint(complaint_id: str, photo_bytes: bytes, content_type: str):
             classification_breakdown,
         )
 
-        # If this was a duplicate, the ORIGINAL's severity also needs recomputing —
-        # its report_count just went up, which changes its priority
         if duplicate_match:
             original_id = duplicate_match["original_id"]
             original_row = db.execute(
@@ -134,22 +129,22 @@ def process_complaint(complaint_id: str, photo_bytes: bytes, content_type: str):
                     original_row.severity_breakdown.get("classification") or {}
                 )
                 if not original_classification.get("reasoning"):
-                    # Fallback: fetch category/volume-based defaults if classification data is missing
                     original_classification = {
                         "confidence": None,
                         "reasoning": "Original complaint classification",
                         "hazard_indicators": [],
                         "requires_urgent_attention": False,
                     }
-        apply_severity_and_recommendation(
-            db,
-            original_id,
-            original_row.category,
-            original_row.volume,
-            original_classification.get("hazard_indicators", []),
-            original_classification.get("requires_urgent_attention", False),
-            duplicate_match["report_count"],
-            original_classification,
-        )
+
+                apply_severity_and_recommendation(
+                    db,
+                    original_id,
+                    original_row.category,
+                    original_row.volume,
+                    original_classification.get("hazard_indicators", []),
+                    original_classification.get("requires_urgent_attention", False),
+                    duplicate_match["report_count"],
+                    original_classification,
+                )
     finally:
         db.close()

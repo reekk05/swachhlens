@@ -5,6 +5,7 @@ from database import get_db
 from schemas.complaint import ComplaintCreateResponse
 from core.storage import upload_complaint_photo
 from core.ai_pipeline import process_complaint
+from core.auth import get_current_user_id
 
 router = APIRouter(prefix="/complaints", tags=["complaints"])
 
@@ -18,15 +19,16 @@ async def create_complaint(
     description: str = Form(None),
     address_text: str = Form(None),
     db: Session = Depends(get_db),
+    reporter_id: str = Depends(get_current_user_id),
 ):
     photo_bytes = await photo.read()
     photo_path = upload_complaint_photo(photo_bytes, photo.content_type)
 
     result = db.execute(
         text("""
-            INSERT INTO complaints (location, photo_url, description, address_text, status)
-            VALUES (ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :photo_url, :description, :address_text, 'pending')
-            RETURNING id, status
+                INSERT INTO complaints (location, photo_url, description, address_text, reporter_id, status)
+                VALUES (ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :photo_url, :description, :address_text, :reporter_id, 'pending')
+                RETURNING id, status
         """),
         {
             "lng": longitude,
@@ -34,6 +36,7 @@ async def create_complaint(
             "photo_url": photo_path,
             "description": description,
             "address_text": address_text,
+            "reporter_id": reporter_id,
         },
     )
     row = result.fetchone()

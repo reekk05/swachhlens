@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { supabase } from "./lib/supabase";
+import AuthScreen from "./screens/AuthScreen";
 import { useState } from "react";
 import {
   StyleSheet,
@@ -14,6 +17,20 @@ import * as Location from "expo-location";
 import { API_URL } from "./config";
 
 export default function App() {
+  const [session, setSession] = useState(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
   const [photo, setPhoto] = useState(null);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -73,13 +90,17 @@ export default function App() {
       formData.append("description", description);
       formData.append("address_text", addressText);
 
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const accessToken = currentSession?.access_token;
+
       const response = await fetch(`${API_URL}/complaints/`, {
-        method: "POST",
-        body: formData,
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      method: "POST",
+      body: formData,
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
 
       if (!response.ok) {
         throw new Error(`Server responded with ${response.status}`);
@@ -102,10 +123,17 @@ export default function App() {
       setSubmitting(false);
     }
   };
+  if (!session) {
+    return <AuthScreen />;
+  }
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Report Waste</Text>
+      
+      <TouchableOpacity onPress={() => supabase.auth.signOut()} style={{ position: "absolute", top: 60, right: 20 }}>
+        <Text style={{ color: "#6fcf97" }}>Log out</Text>
+      </TouchableOpacity>
 
       {photo ? (
         <Image source={{ uri: photo.uri }} style={styles.preview} />
