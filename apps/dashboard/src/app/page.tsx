@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 type Complaint = {
   id: string;
@@ -17,9 +18,18 @@ type Complaint = {
 export default function Home() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createClient();
 
   useEffect(() => {
-    async function fetchComplaints() {
+    async function init() {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.push("/login");
+        return;
+      }
+
       const { data, error } = await supabase
         .from("complaints")
         .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at")
@@ -31,16 +41,20 @@ export default function Home() {
       setLoading(false);
     }
 
-    fetchComplaints();
+    init();
   }, []);
 
   if (loading) {
-    return <div className="p-10 text-white">Loading complaints...</div>;
+    return <div className="p-10 text-white bg-[#0d1b0f] min-h-screen">Loading complaints...</div>;
   }
 
   return (
     <div className="min-h-screen bg-[#0d1b0f] text-white p-10">
       <h1 className="text-3xl font-bold mb-6">SwachhLens — Complaint Queue</h1>
+
+      {complaints.length === 0 && (
+        <p className="text-gray-400">No complaints yet.</p>
+      )}
 
       <div className="space-y-4">
         {complaints.map((c) => (
