@@ -16,6 +16,7 @@ async def create_complaint(
     latitude: float = Form(...),
     longitude: float = Form(...),
     description: str = Form(None),
+    address_text: str = Form(None),
     db: Session = Depends(get_db),
 ):
     photo_bytes = await photo.read()
@@ -23,8 +24,8 @@ async def create_complaint(
 
     result = db.execute(
         text("""
-            INSERT INTO complaints (location, photo_url, description, status)
-            VALUES (ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :photo_url, :description, 'pending')
+            INSERT INTO complaints (location, photo_url, description, address_text, status)
+            VALUES (ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :photo_url, :description, :address_text, 'pending')
             RETURNING id, status
         """),
         {
@@ -32,6 +33,7 @@ async def create_complaint(
             "lat": latitude,
             "photo_url": photo_path,
             "description": description,
+            "address_text": address_text,
         },
     )
     row = result.fetchone()
