@@ -89,3 +89,31 @@ def list_complaints(
     )
     rows = result.fetchall()
     return [ComplaintOut.model_validate(row._mapping) for row in rows]
+
+
+@router.get("/me/stats")
+def my_stats(
+    db: Session = Depends(get_db),
+    reporter_id: str = Depends(get_current_user_id),
+):
+    if not reporter_id:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    result = db.execute(
+        text("""
+            SELECT
+                COUNT(*) as total_reports,
+                COALESCE(SUM(estimated_weight_kg), 0) as total_weight_kg,
+                COUNT(*) FILTER (WHERE status = 'resolved') as resolved_count
+            FROM complaints
+            WHERE reporter_id = :reporter_id
+        """),
+        {"reporter_id": reporter_id},
+    )
+    row = result.fetchone()
+
+    return {
+        "total_reports": row.total_reports,
+        "total_weight_kg": float(row.total_weight_kg),
+        "resolved_count": row.resolved_count,
+    }

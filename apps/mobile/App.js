@@ -33,11 +33,18 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+      if (session) {
+        fetchStats();
+      }
+    }, [session]);
+
   const [photo, setPhoto] = useState(null);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [view, setView] = useState("report");
   const [myReports, setMyReports] = useState([]);
+  const [stats, setStats] = useState(null);
 
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -145,6 +152,22 @@ export default function App() {
       }
       return [];
     };
+
+    const fetchStats = async () => {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const accessToken = currentSession?.access_token;
+
+      try {
+        const response = await fetch(`${API_URL}/complaints/me/stats`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+        }
+      } catch (e) {
+      }
+    };
   
   const openMyReports = async () => {
     const reports = await fetchMyReports();
@@ -183,6 +206,23 @@ export default function App() {
       <TouchableOpacity onPress={openMyReports} style={{ marginBottom: 16 }}>
         <Text style={{ color: "#6fcf97" }}>View My Reports →</Text>
       </TouchableOpacity>
+
+      {stats && (
+        <View style={{ flexDirection: "row", justifyContent: "space-between", backgroundColor: "#132618", borderRadius: 12, padding: 14, marginBottom: 16 }}>
+          <View style={{ alignItems: "center" }}>
+            <Text style={{ color: "#6fcf97", fontSize: 20, fontWeight: "700" }}>{stats.total_reports}</Text>
+            <Text style={{ color: "#888", fontSize: 12 }}>Reports</Text>
+          </View>
+          <View style={{ alignItems: "center" }}>
+            <Text style={{ color: "#6fcf97", fontSize: 20, fontWeight: "700" }}>{stats.total_weight_kg.toFixed(1)} kg</Text>
+            <Text style={{ color: "#888", fontSize: 12 }}>Waste flagged</Text>
+          </View>
+          <View style={{ alignItems: "center" }}>
+            <Text style={{ color: "#6fcf97", fontSize: 20, fontWeight: "700" }}>{stats.resolved_count}</Text>
+            <Text style={{ color: "#888", fontSize: 12 }}>Resolved</Text>
+          </View>
+        </View>
+      )}
       
       <TouchableOpacity onPress={() => supabase.auth.signOut()} style={{ position: "absolute", top: 60, right: 20 }}>
         <Text style={{ color: "#6fcf97" }}>Log out</Text>
