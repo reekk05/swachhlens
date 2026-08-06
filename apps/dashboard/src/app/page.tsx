@@ -1,8 +1,13 @@
 "use client";
 
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import dynamic from "next/dynamic";
+
+const ComplaintMap = dynamic(() => import("@/components/ComplaintMap"), { ssr: false });
+
 
 type Complaint = {
   id: string;
@@ -13,6 +18,8 @@ type Complaint = {
   recommended_action: string | null;
   address_text: string | null;
   reported_at: string;
+  latitude: number;
+  longitude: number;
 };
 
 export default function Home() {
@@ -31,8 +38,8 @@ export default function Home() {
       }
 
       const { data, error } = await supabase
-        .from("complaints")
-        .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at")
+        .from("complaints_with_coords")
+        .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude")
         .order("severity_score", { ascending: false, nullsFirst: false });
 
       if (!error && data) {
@@ -66,7 +73,11 @@ export default function Home() {
       {complaints.length === 0 && (
         <p className="text-gray-400">No complaints yet.</p>
       )}
-
+      {complaints.length > 0 && (
+        <div className="mb-8">
+          <ComplaintMap complaints={complaints} />
+        </div>
+)}
       <div className="space-y-4">
         {complaints.map((c) => (
           <div key={c.id} className="bg-[#132618] rounded-xl p-5 border border-[#2e7d4f]">
@@ -76,6 +87,12 @@ export default function Home() {
                   {c.category?.replace(/_/g, " ") || "Pending classification"}
                 </p>
                 <p className="text-sm text-gray-400">{c.address_text || "Location pending"}</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {new Date(c.reported_at).toLocaleString("en-IN", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold text-[#6fcf97]">
