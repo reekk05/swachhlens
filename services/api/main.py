@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import complaints, staff
+from routers import complaints, staff, copilot
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
@@ -17,6 +17,7 @@ app.add_middleware(
 
 app.include_router(complaints.router)
 app.include_router(staff.router)
+app.include_router(copilot.router)
 
 
 @app.get("/")

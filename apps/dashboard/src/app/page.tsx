@@ -25,6 +25,9 @@ type Complaint = {
 export default function Home() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [copilotQuestion, setCopilotQuestion] = useState("");
+const [copilotAnswer, setCopilotAnswer] = useState("");
+const [copilotLoading, setCopilotLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -79,6 +82,33 @@ export default function Home() {
 
   if (data) setComplaints(data);
 };
+const askCopilot = async () => {
+  if (!copilotQuestion.trim()) return;
+
+  setCopilotLoading(true);
+  setCopilotAnswer("");
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+
+  try {
+    const response = await fetch("http://localhost:8000/copilot/ask", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ question: copilotQuestion }),
+    });
+
+    const data = await response.json();
+    setCopilotAnswer(data.answer || "No response received.");
+  } catch {
+    setCopilotAnswer("Something went wrong reaching the copilot.");
+  } finally {
+    setCopilotLoading(false);
+  }
+};
 
   if (loading) {
     return <div className="p-10 text-white bg-[#0d1b0f] min-h-screen">Loading complaints...</div>;
@@ -107,6 +137,31 @@ export default function Home() {
           <ComplaintMap complaints={complaints} />
         </div>
 )}
+<div className="bg-[#132618] rounded-xl p-5 border border-[#2e7d4f] mb-8">
+  <h2 className="text-lg font-semibold mb-3">🤖 Municipal Copilot</h2>
+  <div className="flex gap-2">
+    <input
+      type="text"
+      value={copilotQuestion}
+      onChange={(e) => setCopilotQuestion(e.target.value)}
+      onKeyDown={(e) => e.key === "Enter" && askCopilot()}
+      placeholder="Ask e.g. 'What are the top 3 most urgent complaints?'"
+      className="flex-1 bg-[#0d1b0f] text-white rounded-lg p-3 border border-[#2e7d4f]"
+    />
+    <button
+      onClick={askCopilot}
+      disabled={copilotLoading}
+      className="bg-[#2e7d4f] text-white rounded-lg px-5 font-semibold"
+    >
+      {copilotLoading ? "..." : "Ask"}
+    </button>
+  </div>
+  {copilotAnswer && (
+    <p className="text-gray-300 text-sm mt-4 whitespace-pre-wrap border-t border-[#2e7d4f] pt-4">
+      {copilotAnswer}
+    </p>
+  )}
+</div>
       <div className="space-y-4">
         {complaints.map((c) => (
           <div key={c.id} className="bg-[#132618] rounded-xl p-5 border border-[#2e7d4f]">
