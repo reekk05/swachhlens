@@ -26,8 +26,10 @@ export default function Home() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [copilotQuestion, setCopilotQuestion] = useState("");
-const [copilotAnswer, setCopilotAnswer] = useState("");
-const [copilotLoading, setCopilotLoading] = useState(false);
+  const [copilotAnswer, setCopilotAnswer] = useState("");
+  const [copilotLoading, setCopilotLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [routeResult, setRouteResult] = useState<any[]>([]);
   const router = useRouter();
   const supabase = createClient();
 
@@ -109,6 +111,34 @@ const askCopilot = async () => {
     setCopilotLoading(false);
   }
 };
+const getRoute = async () => {
+  if (selectedIds.length === 0) return;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+
+  const response = await fetch("http://localhost:8000/staff/route", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      complaint_ids: selectedIds,
+      start_lat: 20.2961,
+      start_lon: 85.8245,
+    }),
+  });
+
+  const data = await response.json();
+  setRouteResult(data.route || []);
+};
+
+const toggleSelect = (id: string) => {
+  setSelectedIds((prev) =>
+    prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+  );
+};
 
   if (loading) {
     return <div className="p-10 text-white bg-[#0d1b0f] min-h-screen">Loading complaints...</div>;
@@ -162,6 +192,27 @@ const askCopilot = async () => {
     </p>
   )}
 </div>
+<div className="bg-[#132618] rounded-xl p-5 border border-[#2e7d4f] mb-8">
+  <h2 className="text-lg font-semibold mb-3">🚚 Route Planner</h2>
+  <p className="text-sm text-gray-400 mb-3">{selectedIds.length} complaint(s) selected</p>
+  <button
+    onClick={getRoute}
+    disabled={selectedIds.length === 0}
+    className="bg-[#2e7d4f] text-white rounded-lg px-5 py-2 font-semibold disabled:opacity-50"
+  >
+    Get Optimized Route
+  </button>
+  {routeResult.length > 0 && (
+    <ol className="mt-4 space-y-2">
+      {routeResult.map((stop, i) => (
+        <li key={stop.id} className="text-sm text-gray-300">
+          {i + 1}. {stop.category?.replace(/_/g, " ")} — {stop.address || "Unknown location"}
+          {" "}({stop.distance_from_previous_m}m from previous)
+        </li>
+      ))}
+    </ol>
+  )}
+</div>
       <div className="space-y-4">
         {complaints.map((c) => (
           <div key={c.id} className="bg-[#132618] rounded-xl p-5 border border-[#2e7d4f]">
@@ -190,6 +241,14 @@ const askCopilot = async () => {
                 {c.recommended_action}
               </p>
             )}
+            <label className="flex items-center gap-2 mt-3 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(c.id)}
+                onChange={() => toggleSelect(c.id)}
+              />
+              Select for route
+            </label>
             {c.status !== "resolved" && (
               <div className="mt-3 border-t border-[#2e7d4f] pt-3">
                 <input

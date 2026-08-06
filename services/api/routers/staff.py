@@ -1,3 +1,4 @@
+from fastapi import Body
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -6,6 +7,7 @@ import json
 from database import get_db
 from core.storage import upload_complaint_photo
 from core.auth import get_current_user_id
+from core.routing import optimize_route
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 
@@ -61,3 +63,51 @@ async def resolve_complaint(
     )
 
     return {"status": new_status, "verification": verification}
+
+
+@router.post("/route")
+def get_optimized_route(
+    complaint_ids: list[str] = Body(...),
+    start_lat: float = Body(...),
+    start_lon: float = Body(...),
+    db: Session = Depends(get_db),
+    staff_id: str = Depends(get_current_user_id),
+):
+    if not staff_id:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    staff_check = db.execute(
+        text("SELECT id FROM staff_profiles WHERE id = :id"),
+        {"id": staff_id},
+    ).fetchone()
+    if not staff_check:
+        raise HTTPException(status_code=403, detail="Staff access required")
+
+    placeholders = ", ".join([f":id{i}" for i in range(len(complaint_ids))])
+    params = {f"id{i}": cid for i, cid in enumerate(complaint_ids)}
+
+    result = db.execute(
+        text(f"""
+            SELECT id, category, address_text,
+                   ST_Y(location::geometry) as latitude,
+                   ST_X(location::geometry) as longitude
+            FROM complaints
+            WHERE id IN ({placeholders})
+        """),
+        params,
+    )
+    rows = result.fetchall()
+
+    stops = [
+        {
+            "id": str(row.id),
+            "category": row.category,
+            "address": row.address_text,
+            "latitude": row.latitude,
+            "longitude": row.longitude,
+        }
+        for row in rows
+    ]
+
+    route = optimize_route(stops, start_lat, start_lon)
+    return {"route": route}
