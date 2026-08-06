@@ -19,6 +19,7 @@ def apply_severity_and_recommendation(
     requires_urgent_attention: bool,
     report_count: int,
     classification_breakdown: dict,
+    ai_workers_needed: int = None,
 ):
     severity = compute_severity(
         volume=volume,
@@ -26,7 +27,9 @@ def apply_severity_and_recommendation(
         requires_urgent_attention=requires_urgent_attention,
         report_count=report_count,
     )
-    recommendation = generate_recommendation(category, volume, severity["level"])
+    recommendation = generate_recommendation(
+        category, volume, severity["level"], ai_workers_needed
+    )
 
     combined_breakdown = {
         "classification": classification_breakdown,
@@ -89,13 +92,21 @@ def process_complaint(complaint_id: str, photo_bytes: bytes, content_type: str):
                 UPDATE complaints
                 SET status = 'verified',
                     category = :category,
-                    volume = :volume
+                    volume = :volume,
+                    estimated_weight_kg = :weight,
+                    estimated_cleanup_minutes = :cleanup_minutes,
+                    workers_needed = :workers,
+                    recyclable_percentage = :recyclable
                 WHERE id = :id
             """),
             {
                 "id": complaint_id,
                 "category": result["category"],
                 "volume": result["volume"],
+                "weight": result["estimated_weight_kg"],
+                "cleanup_minutes": result["estimated_cleanup_minutes"],
+                "workers": result["workers_needed"],
+                "recyclable": result["recyclable_percentage"],
             },
         )
         db.commit()
@@ -113,6 +124,7 @@ def process_complaint(complaint_id: str, photo_bytes: bytes, content_type: str):
             result["requires_urgent_attention"],
             report_count,
             classification_breakdown,
+            result["workers_needed"],
         )
 
         if duplicate_match:

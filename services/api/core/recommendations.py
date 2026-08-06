@@ -24,10 +24,11 @@ BASE_COST_INR = {
 }
 
 
-def generate_recommendation(category: str, volume: str, severity_level: str) -> dict:
+def generate_recommendation(
+    category: str, volume: str, severity_level: str, ai_workers_needed: int = None
+) -> dict:
     vehicle = VEHICLE_MAP.get(category, "General Waste Truck")
-    crew = CREW_SIZE_MAP.get(volume, 2)
-
+    crew = ai_workers_needed if ai_workers_needed else CREW_SIZE_MAP.get(volume, 2)
     if category == "hazardous":
         equipment = ["Hazmat suit", "Gloves", "Containment bags"]
     elif category == "e_waste":
