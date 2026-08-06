@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./screens/AuthScreen";
 import { useState } from "react";
+import { Keyboard, TouchableWithoutFeedback } from "react-native";
+
 import {
   StyleSheet,
   Text,
@@ -34,6 +36,8 @@ export default function App() {
   const [photo, setPhoto] = useState(null);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [view, setView] = useState("report");
+  const [myReports, setMyReports] = useState([]);
 
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -127,9 +131,55 @@ export default function App() {
     return <AuthScreen />;
   }
 
+    const fetchMyReports = async () => {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const accessToken = currentSession?.access_token;
+
+      const response = await fetch(`${API_URL}/complaints/`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data;
+      }
+      return [];
+    };
+  
+  const openMyReports = async () => {
+    const reports = await fetchMyReports();
+    setMyReports(reports);
+    setView("history");
+  };
+  if (view === "history") {
+    return (
+      <View style={styles.container}>
+        <TouchableOpacity onPress={() => setView("report")} style={{ marginBottom: 16 }}>
+          <Text style={{ color: "#6fcf97" }}>← Back to Report</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>My Reports</Text>
+        {myReports.map((r) => (
+          <View key={r.id} style={{ backgroundColor: "#132618", padding: 14, borderRadius: 12, marginBottom: 10 }}>
+            <Text style={{ color: "#fff", fontWeight: "600", textTransform: "capitalize" }}>
+              {r.category ? r.category.replace(/_/g, " ") : "Pending classification"}
+            </Text>
+            <Text style={{ color: "#6fcf97", marginTop: 4, textTransform: "uppercase", fontSize: 12 }}>
+              {r.status}
+            </Text>
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+
   return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <View style={styles.container}>
       <Text style={styles.title}>Report Waste</Text>
+      <TouchableOpacity onPress={openMyReports} style={{ marginBottom: 16 }}>
+        <Text style={{ color: "#6fcf97" }}>View My Reports →</Text>
+      </TouchableOpacity>
       
       <TouchableOpacity onPress={() => supabase.auth.signOut()} style={{ position: "absolute", top: 60, right: 20 }}>
         <Text style={{ color: "#6fcf97" }}>Log out</Text>
@@ -170,6 +220,7 @@ export default function App() {
         )}
       </TouchableOpacity>
     </View>
+    </TouchableWithoutFeedback>
   );
 }
 

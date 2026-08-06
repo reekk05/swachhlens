@@ -74,10 +74,18 @@ def get_complaint(complaint_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=List[ComplaintOut])
-def list_complaints(db: Session = Depends(get_db)):
-    result = db.execute(text("""
+def list_complaints(
+    db: Session = Depends(get_db),
+    reporter_id: str = Depends(get_current_user_id),
+):
+    result = db.execute(
+        text("""
             SELECT id, status, category, volume, description, reported_at
-            FROM complaints ORDER BY reported_at DESC
-        """))
+            FROM complaints
+            WHERE reporter_id = :reporter_id
+            ORDER BY reported_at DESC
+        """),
+        {"reporter_id": reporter_id},
+    )
     rows = result.fetchall()
     return [ComplaintOut.model_validate(row._mapping) for row in rows]

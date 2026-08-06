@@ -1,11 +1,11 @@
-import os
 import jwt
-from fastapi import Header, HTTPException
-from dotenv import load_dotenv
+from jwt import PyJWKClient
+from fastapi import Header
 
-load_dotenv()
+SUPABASE_PROJECT_URL = "https://vumthonyqjexzhfijjni.supabase.co"
+JWKS_URL = f"{SUPABASE_PROJECT_URL}/auth/v1/.well-known/jwks.json"
 
-SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+_jwk_client = PyJWKClient(JWKS_URL)
 
 
 def get_current_user_id(authorization: str = Header(None)) -> str | None:
@@ -15,10 +15,11 @@ def get_current_user_id(authorization: str = Header(None)) -> str | None:
     token = authorization.replace("Bearer ", "")
 
     try:
+        signing_key = _jwk_client.get_signing_key_from_jwt(token)
         payload = jwt.decode(
             token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
+            signing_key.key,
+            algorithms=["ES256"],
             audience="authenticated",
         )
         return payload.get("sub")

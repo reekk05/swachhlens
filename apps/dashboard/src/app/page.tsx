@@ -50,7 +50,18 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#0d1b0f] text-white p-10">
-      <h1 className="text-3xl font-bold mb-6">SwachhLens — Complaint Queue</h1>
+          <div className="flex justify-between items-center mb-6">
+      <h1 className="text-3xl font-bold">SwachhLens — Complaint Queue</h1>
+      <button
+        onClick={async () => {
+          await supabase.auth.signOut();
+          router.push("/login");
+        }}
+        className="text-[#6fcf97] border border-[#2e7d4f] rounded-lg px-4 py-2 text-sm"
+      >
+        Log out
+      </button>
+    </div>
 
       {complaints.length === 0 && (
         <p className="text-gray-400">No complaints yet.</p>
