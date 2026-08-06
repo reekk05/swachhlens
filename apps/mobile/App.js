@@ -166,6 +166,9 @@ export default function App() {
             <Text style={{ color: "#6fcf97", marginTop: 4, textTransform: "uppercase", fontSize: 12 }}>
               {r.status}
             </Text>
+            <Text style={{ color: "#888", marginTop: 4, fontSize: 12 }}>
+              {new Date(r.reported_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+            </Text>
           </View>
         ))}
       </View>

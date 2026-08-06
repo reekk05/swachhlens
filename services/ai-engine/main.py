@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import classify
+from routers import classify, verify
 
 app = FastAPI(
     title="SwachhLens AI Engine",
@@ -8,6 +8,7 @@ app = FastAPI(
 )
 
 app.include_router(classify.router)
+app.include_router(verify.router)
 
 
 @app.get("/")

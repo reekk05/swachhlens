@@ -50,6 +50,35 @@ export default function Home() {
 
     init();
   }, []);
+  
+  const handleResolve = async (complaintId: string, file: File | undefined) => {
+  if (!file) return;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+
+  const formData = new FormData();
+  formData.append("photo", file);
+
+  const response = await fetch(
+    `http://localhost:8000/staff/complaints/${complaintId}/resolve`,
+    {
+      method: "POST",
+      body: formData,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+
+  const result = await response.json();
+  alert(`Status: ${result.status}\nAI says: ${result.verification.reasoning}`);
+
+  const { data } = await supabase
+    .from("complaints_with_coords")
+    .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude")
+    .order("severity_score", { ascending: false, nullsFirst: false });
+
+  if (data) setComplaints(data);
+};
 
   if (loading) {
     return <div className="p-10 text-white bg-[#0d1b0f] min-h-screen">Loading complaints...</div>;
@@ -105,6 +134,16 @@ export default function Home() {
               <p className="text-sm text-gray-300 mt-3 border-t border-[#2e7d4f] pt-3">
                 {c.recommended_action}
               </p>
+            )}
+            {c.status !== "resolved" && (
+              <div className="mt-3 border-t border-[#2e7d4f] pt-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleResolve(c.id, e.target.files?.[0])}
+                  className="text-sm text-gray-300"
+                />
+              </div>
             )}
           </div>
         ))}
