@@ -8,6 +8,7 @@ from database import get_db
 from core.storage import upload_complaint_photo
 from core.auth import get_current_user_id
 from core.routing import optimize_route
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 
@@ -111,3 +112,40 @@ def get_optimized_route(
 
     route = optimize_route(stops, start_lat, start_lon)
     return {"route": route}
+
+
+class RejectRequest(BaseModel):
+    reason: str
+
+
+@router.post("/complaints/{complaint_id}/reject")
+def reject_complaint(
+    complaint_id: str,
+    payload: RejectRequest,
+    db: Session = Depends(get_db),
+    staff_id: str = Depends(get_current_user_id),
+):
+    if not staff_id:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    staff_check = db.execute(
+        text("SELECT id FROM staff_profiles WHERE id = :id"),
+        {"id": staff_id},
+    ).fetchone()
+    if not staff_check:
+        raise HTTPException(status_code=403, detail="Staff access required")
+
+    if not payload.reason.strip():
+        raise HTTPException(status_code=400, detail="A rejection reason is required")
+
+    db.execute(
+        text("""
+            UPDATE complaints
+            SET status = 'rejected', rejection_reason = :reason
+            WHERE id = :id
+        """),
+        {"reason": payload.reason, "id": complaint_id},
+    )
+    db.commit()
+
+    return {"status": "rejected", "reason": payload.reason}

@@ -84,6 +84,37 @@ export default function Home() {
 
   if (data) setComplaints(data);
 };
+
+const handleReject = async (complaintId: string) => {
+  const reason = prompt("Reason for rejecting this complaint:");
+  if (!reason || !reason.trim()) return;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+
+  const response = await fetch(
+    `http://localhost:8000/staff/complaints/${complaintId}/reject`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ reason }),
+    }
+  );
+
+  const result = await response.json();
+  alert(`Status: ${result.status}`);
+
+  const { data } = await supabase
+    .from("complaints_with_coords")
+    .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude")
+    .order("severity_score", { ascending: false, nullsFirst: false });
+
+  if (data) setComplaints(data);
+};
+
 const askCopilot = async () => {
   if (!copilotQuestion.trim()) return;
 
@@ -249,6 +280,14 @@ const toggleSelect = (id: string) => {
               />
               Select for route
             </label>
+            {c.status !== "resolved" && c.status !== "rejected" && (
+              <button
+                onClick={() => handleReject(c.id)}
+                className="text-red-400 text-sm mt-2 border border-red-900 rounded-lg px-3 py-1"
+              >
+                Reject
+              </button>
+            )}
             {c.status !== "resolved" && (
               <div className="mt-3 border-t border-[#2e7d4f] pt-3">
                 <input
