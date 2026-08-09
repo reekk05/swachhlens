@@ -1,6 +1,6 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import { useState, useEffect } from "react";
 
 type Complaint = {
   id: string;
@@ -47,6 +47,47 @@ const statusStyles: Record<string, string> = {
   rejected: "bg-signal/20 text-signal",
 };
 
+function ResolvedPhotos({ complaintId }: { complaintId: string }) {
+  const [photos, setPhotos] = useState<{
+    before_photo_url: string | null;
+    after_photo_url: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch(`http://localhost:8000/complaints/${complaintId}/photos`)
+      .then((res) => res.json())
+      .then(setPhotos)
+      .catch((err) => console.error("Failed to fetch photos", err));
+  }, [complaintId]);
+
+  if (!photos) return null;
+
+  return (
+    <div className="flex gap-3 mt-3">
+      {photos.before_photo_url && (
+        <div>
+          <p className="text-xs text-mist mb-1">Before</p>
+          <img
+            src={photos.before_photo_url}
+            alt="Condition before resolution"
+            className="w-24 h-24 object-cover rounded-lg"
+          />
+        </div>
+      )}
+      {photos.after_photo_url && (
+        <div>
+          <p className="text-xs text-mist mb-1">After</p>
+          <img
+            src={photos.after_photo_url}
+            alt="Condition after resolution"
+            className="w-24 h-24 object-cover rounded-lg"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function QueueTab({
   complaints,
   onResolve,
@@ -65,100 +106,140 @@ export default function QueueTab({
   }
 
   return (
-  <div>
-    <div className="flex flex-wrap gap-3 mb-5 text-xs text-mist">
-      {Object.entries(categoryColors).map(([key, color]) => (
-        <span key={key} className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-          {categoryIcons[key]} {key.replace(/_/g, " ")}
-        </span>
-      ))}
-    </div>
-    <div className="space-y-4">
-      {complaints.map((c) => (
-        <div
-          key={c.id}
-          className="bg-slate rounded-xl p-5 border-l-4"
-          style={{ borderLeftColor: categoryColors[c.category || ""] || "#8B93A1" }}
-        >
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-lg font-semibold capitalize">
-                {c.category ? `${categoryIcons[c.category] || ""} ${c.category.replace(/_/g, " ")}` : "Pending classification"}
-              </p>
-              <p className="text-sm text-mist">{c.address_text || "Location pending"}</p>
-              <p className="text-xs text-mist mt-1">
-                {new Date(c.reported_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-              </p>
-              {c.reporter_name && (
-                <div className="flex items-center gap-2 mt-2">
-                  {c.reporter_avatar ? (
-                    <img src={c.reporter_avatar} className="w-5 h-5 rounded-full" alt="" />
-                  ) : (
-                    <div className="w-5 h-5 rounded-full bg-ink" />
-                  )}
-                  <span className="text-xs text-mist">Reported by {c.reporter_name}</span>
-                </div>
-              )}
+    <div>
+      {/* Category Legend */}
+      <div className="flex flex-wrap gap-3 mb-5 text-xs text-mist">
+        {Object.entries(categoryColors).map(([key, color]) => (
+          <span key={key} className="flex items-center gap-1.5">
+            <span
+              className="w-2.5 h-2.5 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+            {categoryIcons[key]} {key.replace(/_/g, " ")}
+          </span>
+        ))}
+      </div>
+
+      {/* Complaints List */}
+      <div className="space-y-4">
+        {complaints.map((c) => (
+          <div
+            key={c.id}
+            className="bg-slate rounded-xl p-5 border-l-4"
+            style={{
+              borderLeftColor: categoryColors[c.category || ""] || "#8B93A1",
+            }}
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-lg font-semibold capitalize">
+                  {c.category
+                    ? `${categoryIcons[c.category] || ""} ${c.category.replace(
+                        /_/g,
+                        " "
+                      )}`
+                    : "Pending classification"}
+                </p>
+                <p className="text-sm text-mist">
+                  {c.address_text || "Location pending"}
+                </p>
+                <p className="text-xs text-mist mt-1">
+                  {new Date(c.reported_at).toLocaleString("en-IN", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </p>
+                {c.reporter_name && (
+                  <div className="flex items-center gap-2 mt-2">
+                    {c.reporter_avatar ? (
+                      <img
+                        src={c.reporter_avatar}
+                        className="w-5 h-5 rounded-full"
+                        alt={`${c.reporter_name}'s avatar`}
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-ink" />
+                    )}
+                    <span className="text-xs text-mist">
+                      Reported by {c.reporter_name}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-display text-mint">
+                  {c.severity_score ?? "—"}
+                </p>
+                <span
+                  className={`inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full mt-1 ${
+                    statusStyles[c.status] || "bg-mist/20 text-mist"
+                  }`}
+                >
+                  {c.status.replace(/_/g, " ")}
+                </span>
+              </div>
             </div>
-<div className="text-right">
-  <p className="text-2xl font-display text-mint">{c.severity_score ?? "—"}</p>
-  <span className={`inline-block text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full mt-1 ${statusStyles[c.status] || "bg-mist/20 text-mist"}`}>
-    {c.status.replace(/_/g, " ")}
-  </span>
-</div>
-</div>
 
-{c.recommended_action && (
-  <p className="text-sm text-mist mt-3 border-t border-border pt-3">{c.recommended_action}</p>
-  )}
+            {c.recommended_action && (
+              <p className="text-sm text-mist mt-3 border-t border-border pt-3">
+                {c.recommended_action}
+              </p>
+            )}
 
-  {c.status === "rejected" && c.rejection_reason && (
-    <p className="text-sm text-signal mt-3 border-t border-border pt-3">Rejected: {c.rejection_reason}</p>
-    )}
+            {c.status === "rejected" && c.rejection_reason && (
+              <p className="text-sm text-signal mt-3 border-t border-border pt-3">
+                Rejected: {c.rejection_reason}
+              </p>
+            )}
 
-    {c.status === "resolved" && (
-    <div className="flex items-center gap-2 mt-3 border-t border-border pt-3 text-sm text-mint">
-    <span>✓ Verified and resolved by AI</span>
-    </div>
-    )}
+            {c.status === "resolved" && (
+              <div className="mt-3 border-t border-border pt-3">
+                <div className="flex items-center gap-2 text-sm text-mint">
+                  <span>✓ Verified and resolved by AI</span>
+                </div>
+                {/* 
+                  Added the missing component here so photos 
+                  actually render for resolved complaints!
+                */}
+                <ResolvedPhotos complaintId={c.id} />
+              </div>
+            )}
 
+            {c.status !== "resolved" && c.status !== "rejected" && (
+              <div className="flex items-center gap-3 mt-4 border-t border-border pt-4">
+                <label className="flex items-center gap-2 text-sm text-mist cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(c.id)}
+                    onChange={() => onToggleSelect(c.id)}
+                    className="accent-mint w-4 h-4"
+                  />
+                  Select for dispatch
+                </label>
 
+                <div className="flex-1" />
 
-{c.status !== "resolved" && c.status !== "rejected" && (
-  <div className="flex items-center gap-3 mt-4 border-t border-border pt-4">
-    <label className="flex items-center gap-2 text-sm text-mist cursor-pointer">
-      <input
-        type="checkbox"
-        checked={selectedIds.includes(c.id)}
-        onChange={() => onToggleSelect(c.id)}
-        className="accent-mint w-4 h-4"
-      />
-      Select for dispatch
-    </label>
+                <button
+                  onClick={() => onReject(c.id)}
+                  className="text-signal text-sm font-medium border border-signal/30 rounded-lg px-4 py-2 hover:bg-signal/10 transition-colors"
+                >
+                  Reject
+                </button>
 
-    <div className="flex-1" />
-
-    <button
-      onClick={() => onReject(c.id)}
-      className="text-signal text-sm font-medium border border-signal/30 rounded-lg px-4 py-2 hover:bg-signal/10 transition-colors"
-    >
-      Reject
-    </button>
-
-    <label className="text-ink text-sm font-medium bg-mint rounded-lg px-4 py-2 hover:opacity-90 transition-opacity cursor-pointer">
-      Mark Resolved
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => onResolve(c.id, e.target.files?.[0])}
-        className="hidden"
-      />
-    </label>
-  </div>
-)}        </div>
-      ))}
-    </div>
+                <label className="text-ink text-sm font-medium bg-mint rounded-lg px-4 py-2 hover:opacity-90 transition-opacity cursor-pointer">
+                  Mark Resolved
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => onResolve(c.id, e.target.files?.[0])}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

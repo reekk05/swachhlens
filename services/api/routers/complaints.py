@@ -7,6 +7,7 @@ from core.storage import upload_complaint_photo
 from core.ai_pipeline import process_complaint
 from core.auth import get_current_user_id
 from core.supabase_client import supabase
+from core.storage import get_signed_url
 
 router = APIRouter(prefix="/complaints", tags=["complaints"])
 
@@ -172,3 +173,21 @@ def delete_my_account(
     supabase.auth.admin.delete_user(reporter_id)
 
     return {"status": "deleted"}
+
+
+@router.get("/{complaint_id}/photos")
+def get_complaint_photos(complaint_id: str, db: Session = Depends(get_db)):
+    row = db.execute(
+        text("SELECT photo_url, resolved_photo_url FROM complaints WHERE id = :id"),
+        {"id": complaint_id},
+    ).fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+
+    before_url = get_signed_url(row.photo_url) if row.photo_url else None
+    after_url = (
+        get_signed_url(row.resolved_photo_url) if row.resolved_photo_url else None
+    )
+
+    return {"before_photo_url": before_url, "after_photo_url": after_url}

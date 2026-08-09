@@ -9,6 +9,10 @@ from core.storage import upload_complaint_photo
 from core.auth import get_current_user_id
 from core.routing import optimize_route
 from pydantic import BaseModel
+import os
+from core.supabase_client import supabase
+
+STAFF_INVITE_CODE = os.getenv("STAFF_INVITE_CODE", "swachhlens2026")
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 
@@ -149,3 +153,37 @@ def reject_complaint(
     db.commit()
 
     return {"status": "rejected", "reason": payload.reason}
+
+
+class StaffSignupRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str
+    invite_code: str
+
+
+@router.post("/signup")
+def staff_signup(payload: StaffSignupRequest, db: Session = Depends(get_db)):
+    if payload.invite_code != STAFF_INVITE_CODE:
+        raise HTTPException(status_code=403, detail="Invalid invite code")
+
+    result = supabase.auth.admin.create_user(
+        {
+            "email": payload.email,
+            "password": payload.password,
+            "email_confirm": True,
+        }
+    )
+
+    user_id = result.user.id
+
+    db.execute(
+        text("""
+            INSERT INTO staff_profiles (id, full_name, role)
+            VALUES (:id, :full_name, 'field_officer')
+        """),
+        {"id": user_id, "full_name": payload.full_name},
+    )
+    db.commit()
+
+    return {"status": "created", "user_id": user_id}

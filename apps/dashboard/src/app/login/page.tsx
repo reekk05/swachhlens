@@ -31,35 +31,40 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d1b0f] flex items-center justify-center">
-      <form onSubmit={handleLogin} className="bg-[#132618] p-8 rounded-xl w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-white mb-1">SwachhLens</h1>
-        <p className="text-[#6fcf97] text-sm mb-6">Municipal Staff Login</p>
+    <div className="min-h-screen bg-ink flex items-center justify-center">
+      <form onSubmit={handleLogin} className="bg-slate p-8 rounded-xl w-full max-w-sm border border-border">
+        <h1 className="text-2xl font-display tracking-wide text-paper mb-1">SwachhLens</h1>
+        <p className="text-mint text-sm mb-6">Municipal Staff Login</p>
 
         <input
           type="email"
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full bg-[#0d1b0f] text-white rounded-lg p-3 mb-3 border border-[#2e7d4f]"
+          className="w-full bg-ink text-paper rounded-lg p-3 mb-3 border border-border focus:border-mint outline-none"
         />
         <input
           type="password"
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full bg-[#0d1b0f] text-white rounded-lg p-3 mb-3 border border-[#2e7d4f]"
+          className="w-full bg-ink text-paper rounded-lg p-3 mb-3 border border-border focus:border-mint outline-none"
         />
 
-        {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+        {error && <p className="text-signal text-sm mb-3">{error}</p>}
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-[#2e7d4f] text-white rounded-lg py-3 font-semibold"
+          className="w-full bg-mint text-ink rounded-lg py-3 font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           {loading ? "Logging in..." : "Log In"}
         </button>
+
+        <p className="text-mist text-sm text-center mt-4">
+          New staff member?{" "}
+          <a href="/signup" className="text-mint">Register here</a>
+        </p>
       </form>
     </div>
   );
