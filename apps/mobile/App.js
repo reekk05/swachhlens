@@ -2,14 +2,16 @@ import { useEffect } from "react";
 import { supabase } from "./lib/supabase";
 import AuthScreen from "./screens/AuthScreen";
 import { useState } from "react";
-import { Keyboard, TouchableWithoutFeedback } from "react-native";
 import { useFonts, BebasNeue_400Regular } from "@expo-google-fonts/bebas-neue";
 import { Manrope_400Regular, Manrope_600SemiBold, Manrope_700Bold } from "@expo-google-fonts/manrope";
 import { colors, fonts } from "./theme";
 import TabBar from "./components/TabBar";
 import ReportTab from "./components/ReportTab";
-import HistoryTab from "./components/HistoryTab";
-import ImpactTab from "./components/ImpactTab";
+import ActivityTab from "./components/ActivityTab";
+import HomeTab from "./components/HomeTab";
+import ProfileTab from "./components/ProfileTab";
+
+
 import {
   StyleSheet,
   Text,
@@ -36,7 +38,7 @@ export default function App() {
   const [photo, setPhoto] = useState(null);
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState("report");  const [myReports, setMyReports] = useState([]);
+  const [activeTab, setActiveTab] = useState("home");  const [myReports, setMyReports] = useState([]);
   const [stats, setStats] = useState(null);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export default function App() {
   }, [session]);
   
   useEffect(() => {
-    if (session && activeTab === "history") {
+    if (session && activeTab === "activity") {
       fetchMyReports().then(setMyReports);
     }
   }, [activeTab, session]);
@@ -186,7 +188,7 @@ export default function App() {
   const openMyReports = async () => {
     const reports = await fetchMyReports();
     setMyReports(reports);
-    setView("history");
+    setActiveTab("history");
   };
 
 if (!fontsLoaded) {
@@ -198,22 +200,17 @@ if (!session) {
 }
 
 return (
-  <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
-        <Text style={styles.title}>SwachhLens</Text>
-        <TouchableOpacity onPress={() => supabase.auth.signOut()} style={{ paddingTop: 14 }}>
-          <Text style={{ color: colors.mist, fontFamily: fonts.body, fontSize: 13 }}>Log out</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TabBar activeTab={activeTab} onChange={setActiveTab} />
-
-      {activeTab === "report" && <ReportTab />}
-      {activeTab === "history" && <HistoryTab reports={myReports} />}
-      {activeTab === "impact" && <ImpactTab stats={stats} />}
-    </ScrollView>
-  </TouchableWithoutFeedback>
+  
+  <View style={{ flex: 1, backgroundColor: colors.ink }}>
+  <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
+    <Text style={styles.title}>SwachhLens</Text>
+    {activeTab === "home" && <HomeTab onGoToReport={() => setActiveTab("report")} />}
+    {activeTab === "report" && <ReportTab />}
+    {activeTab === "activity" && <ActivityTab stats={stats} reports={myReports} />}
+    {activeTab === "profile" && <ProfileTab session={session} />}
+  </ScrollView>
+    <TabBar activeTab={activeTab} onChange={setActiveTab} />
+   </View>
 );
 }
 

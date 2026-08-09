@@ -15,27 +15,45 @@ import { supabase } from "../lib/supabase";
 export default function AuthScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert("Please enter email and password.");
+const handleAuth = async () => {
+  if (!email || !password) {
+    Alert.alert("Please enter email and password.");
+    return;
+  }
+  if (isSignUp && !displayName.trim()) {
+    Alert.alert("Please choose a username.");
+    return;
+  }
+  setLoading(true);
+
+  if (isSignUp) {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      setLoading(false);
+      Alert.alert("Error", error.message);
       return;
     }
-    setLoading(true);
-
-    const { error } = isSignUp
-      ? await supabase.auth.signUp({ email, password })
-      : await supabase.auth.signInWithPassword({ email, password });
-
-    setLoading(false);
-
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from("citizen_profiles")
+        .insert({ id: data.user.id, display_name: displayName.trim() });
+      if (profileError) {
+        Alert.alert("Signed up, but username couldn't be saved", profileError.message);
+      }
+    }
+  } else {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       Alert.alert("Error", error.message);
     }
-  };
+  }
 
+  setLoading(false);
+};
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <View style={styles.container}>
@@ -44,10 +62,20 @@ export default function AuthScreen() {
         {isSignUp ? "Create an account" : "Log in to report waste"}
       </Text>
 
+      {isSignUp && (
+        <TextInput
+          style={styles.input}
+          placeholder="Choose a username"
+          placeholderTextColor={colors.mist}
+          value={displayName}
+          onChangeText={setDisplayName}
+          autoCapitalize="none"
+        />
+      )}
       <TextInput
         style={styles.input}
         placeholder="Email"
-        placeholderTextColor="#888"
+        placeholderTextColor={colors.mist}
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -56,7 +84,7 @@ export default function AuthScreen() {
       <TextInput
         style={styles.input}
         placeholder="Password"
-        placeholderTextColor="#888"
+        placeholderTextColor={colors.mist}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -78,48 +106,52 @@ export default function AuthScreen() {
     </View>
     </TouchableWithoutFeedback>
   );
+
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0d1b0f",
+    backgroundColor: colors.ink,
     justifyContent: "center",
     paddingHorizontal: 24,
   },
   title: {
-    color: "#fff",
-    fontSize: 32,
-    fontWeight: "700",
-    marginBottom: 6,
+    color: colors.paper,
+    fontSize: 36,
+    fontFamily: fonts.display,
+    marginBottom: 4,
   },
   subtitle: {
-    color: "#6fcf97",
-    fontSize: 15,
-    marginBottom: 30,
+    color: colors.mist,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    marginBottom: 32,
   },
   input: {
-    backgroundColor: "#132618",
-    color: "#fff",
-    borderRadius: 12,
+    backgroundColor: colors.slate,
+    color: colors.paper,
+    fontFamily: fonts.body,
+    borderRadius: 8,
     padding: 14,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   button: {
-    backgroundColor: "#2e7d4f",
-    borderRadius: 14,
+    backgroundColor: colors.mint,
+    borderRadius: 8,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 10,
   },
   buttonText: {
-    color: "#fff",
+    color: colors.ink,
+    fontFamily: fonts.bodyMedium,
     fontSize: 16,
-    fontWeight: "600",
   },
   switchText: {
-    color: "#6fcf97",
+    color: colors.mint,
+    fontFamily: fonts.body,
     textAlign: "center",
-    marginTop: 18,
+    marginTop: 20,
   },
 });

@@ -117,3 +117,32 @@ def my_stats(
         "total_weight_kg": float(row.total_weight_kg),
         "resolved_count": row.resolved_count,
     }
+
+
+@router.get("/leaderboard")
+def leaderboard(db: Session = Depends(get_db)):
+
+    result = db.execute(text("""
+            SELECT
+                c.reporter_id,
+                cp.display_name,
+                COUNT(*) as total_reports,
+                COALESCE(SUM(c.estimated_weight_kg), 0) as total_weight_kg
+            FROM complaints c
+            LEFT JOIN citizen_profiles cp ON cp.id = c.reporter_id
+            WHERE c.reporter_id IS NOT NULL
+            GROUP BY c.reporter_id, cp.display_name
+            ORDER BY total_weight_kg DESC
+            LIMIT 10
+        """))
+    rows = result.fetchall()
+
+    return [
+        {
+            "rank": i + 1,
+            "display_name": row.display_name or "Anonymous",
+            "total_reports": row.total_reports,
+            "total_weight_kg": float(row.total_weight_kg),
+        }
+        for i, row in enumerate(rows)
+    ]

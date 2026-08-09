@@ -5,6 +5,7 @@ import * as Location from "expo-location";
 import { supabase } from "../lib/supabase";
 import { API_URL } from "../config";
 import { colors, fonts } from "../theme";
+import { Keyboard, TouchableWithoutFeedback } from "react-native";
 
 export default function ReportTab() {
   const [photo, setPhoto] = useState(null);
@@ -78,7 +79,8 @@ export default function ReportTab() {
     }
   };
 
-  return (
+return (
+  <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <View>
       {photo ? (
         <View>
@@ -130,5 +132,6 @@ export default function ReportTab() {
         {submitting ? <ActivityIndicator color={colors.ink} /> : <Text style={{ color: colors.ink, fontFamily: fonts.bodyMedium, fontSize: 16 }}>Submit Report</Text>}
       </TouchableOpacity>
     </View>
-  );
+  </TouchableWithoutFeedback>
+);
 }
