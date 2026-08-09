@@ -10,6 +10,8 @@ import ReportTab from "./components/ReportTab";
 import ActivityTab from "./components/ActivityTab";
 import HomeTab from "./components/HomeTab";
 import ProfileTab from "./components/ProfileTab";
+import { useRef } from "react";
+import { Animated } from "react-native";
 
 
 import {
@@ -40,6 +42,7 @@ export default function App() {
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState("home");  const [myReports, setMyReports] = useState([]);
   const [stats, setStats] = useState(null);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -190,6 +193,15 @@ export default function App() {
     setMyReports(reports);
     setActiveTab("history");
   };
+  const changeTab = (tab) => {
+    fadeAnim.setValue(0);
+    setActiveTab(tab);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 220,
+      useNativeDriver: true,
+    }).start();
+  };
 
 if (!fontsLoaded) {
   return <View style={{ flex: 1, backgroundColor: colors.ink }} />;
@@ -204,12 +216,14 @@ return (
   <View style={{ flex: 1, backgroundColor: colors.ink }}>
   <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }}>
     <Text style={styles.title}>SwachhLens</Text>
-    {activeTab === "home" && <HomeTab onGoToReport={() => setActiveTab("report")} />}
+  <Animated.View style={{ opacity: fadeAnim }}>
+    {activeTab === "home" && <HomeTab onGoToReport={() => changeTab("report")} />}
     {activeTab === "report" && <ReportTab />}
     {activeTab === "activity" && <ActivityTab stats={stats} reports={myReports} />}
     {activeTab === "profile" && <ProfileTab session={session} />}
+  </Animated.View>
   </ScrollView>
-    <TabBar activeTab={activeTab} onChange={setActiveTab} />
+    <TabBar activeTab={activeTab} onChange={changeTab} />
    </View>
 );
 }
