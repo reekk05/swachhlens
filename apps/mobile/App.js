@@ -234,14 +234,14 @@ const styles = StyleSheet.create({
     height: 280,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: colors.marigold,
+    borderColor: colors.mint,
     borderStyle: "dashed",
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: colors.slate,
   },
   cameraBoxText: {
-    color: colors.marigold,
+    color: colors.mint,
     fontSize: 15,
     fontFamily: fonts.body,
   },
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   retakeButtonText: {
-    color: colors.marigold,
+    color: colors.mint,
     fontFamily: fonts.body,
   },
   input: {
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   submitButton: {
-    backgroundColor: colors.marigold,
+    backgroundColor: colors.mint,
     borderRadius: 4,
     paddingVertical: 16,
     alignItems: "center",

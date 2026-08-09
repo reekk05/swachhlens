@@ -35,7 +35,7 @@ export default function ImpactTab({ stats }) {
                 marginRight: 12,
                 width: 150,
                 borderTopWidth: 3,
-                borderTopColor: colors.marigold,
+                borderTopColor: colors.mint,
               }}
             >
               <Text style={{ fontSize: 22, marginBottom: 10 }}>{card.icon}</Text>

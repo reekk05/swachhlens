@@ -87,7 +87,7 @@ export default function ReportTab() {
             onPress={takePhoto}
             style={{ position: "absolute", top: 10, right: 10, backgroundColor: colors.ink, borderRadius: 100, paddingHorizontal: 12, paddingVertical: 6 }}
           >
-            <Text style={{ color: colors.marigold, fontFamily: fonts.bodyMedium, fontSize: 12 }}>Retake</Text>
+            <Text style={{ color: colors.mint, fontFamily: fonts.bodyMedium, fontSize: 12 }}>Retake</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -103,7 +103,7 @@ export default function ReportTab() {
             borderColor: "#2A303B",
           }}
         >
-          <View style={{ width: 48, height: 48, borderRadius: 100, backgroundColor: colors.marigold, justifyContent: "center", alignItems: "center", marginRight: 14 }}>
+          <View style={{ width: 48, height: 48, borderRadius: 100, backgroundColor: colors.mint, justifyContent: "center", alignItems: "center", marginRight: 14 }}>
             <Text style={{ fontSize: 20 }}>📷</Text>
           </View>
           <View>
@@ -123,7 +123,7 @@ export default function ReportTab() {
       />
 
       <TouchableOpacity
-        style={{ backgroundColor: colors.marigold, borderRadius: 8, paddingVertical: 16, alignItems: "center", marginTop: 20, opacity: submitting ? 0.5 : 1 }}
+        style={{ backgroundColor: colors.mint, borderRadius: 8, paddingVertical: 16, alignItems: "center", marginTop: 20, opacity: submitting ? 0.5 : 1 }}
         onPress={submitReport}
         disabled={submitting}
       >

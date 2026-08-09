@@ -21,7 +21,7 @@ export default function TabBar({ activeTab, onChange }) {
               paddingVertical: 10,
               borderRadius: 100,
               alignItems: "center",
-              backgroundColor: isActive ? colors.marigold : "transparent",
+              backgroundColor: isActive ? colors.mint : "transparent",
             }}
           >
             <Text
