@@ -3,7 +3,13 @@ import { supabase } from "./lib/supabase";
 import AuthScreen from "./screens/AuthScreen";
 import { useState } from "react";
 import { Keyboard, TouchableWithoutFeedback } from "react-native";
-
+import { useFonts, BebasNeue_400Regular } from "@expo-google-fonts/bebas-neue";
+import { Manrope_400Regular, Manrope_600SemiBold, Manrope_700Bold } from "@expo-google-fonts/manrope";
+import { colors, fonts } from "./theme";
+import TabBar from "./components/TabBar";
+import ReportTab from "./components/ReportTab";
+import HistoryTab from "./components/HistoryTab";
+import ImpactTab from "./components/ImpactTab";
 import {
   StyleSheet,
   Text,
@@ -13,6 +19,7 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  ScrollView
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
@@ -20,6 +27,17 @@ import { API_URL } from "./config";
 
 export default function App() {
   const [session, setSession] = useState(null);
+  const [fontsLoaded] = useFonts({
+  BebasNeue_400Regular,
+  Manrope_400Regular,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+});
+  const [photo, setPhoto] = useState(null);
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState("report");  const [myReports, setMyReports] = useState([]);
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -34,17 +52,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-      if (session) {
-        fetchStats();
-      }
-    }, [session]);
-
-  const [photo, setPhoto] = useState(null);
-  const [description, setDescription] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [view, setView] = useState("report");
-  const [myReports, setMyReports] = useState([]);
-  const [stats, setStats] = useState(null);
+    if (session) {
+      fetchStats();
+    }
+  }, [session]);
+  
+  useEffect(() => {
+    if (session && activeTab === "history") {
+      fetchMyReports().then(setMyReports);
+    }
+  }, [activeTab, session]);
 
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -134,11 +151,8 @@ export default function App() {
       setSubmitting(false);
     }
   };
-  if (!session) {
-    return <AuthScreen />;
-  }
 
-    const fetchMyReports = async () => {
+  const fetchMyReports = async () => {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       const accessToken = currentSession?.access_token;
 
@@ -151,9 +165,9 @@ export default function App() {
         return data;
       }
       return [];
-    };
+  };
 
-    const fetchStats = async () => {
+  const fetchStats = async () => {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       const accessToken = currentSession?.access_token;
 
@@ -167,136 +181,73 @@ export default function App() {
         }
       } catch (e) {
       }
-    };
+  };
   
   const openMyReports = async () => {
     const reports = await fetchMyReports();
     setMyReports(reports);
     setView("history");
   };
-  if (view === "history") {
-    return (
-      <View style={styles.container}>
-        <TouchableOpacity onPress={() => setView("report")} style={{ marginBottom: 16 }}>
-          <Text style={{ color: "#6fcf97" }}>← Back to Report</Text>
+
+if (!fontsLoaded) {
+  return <View style={{ flex: 1, backgroundColor: colors.ink }} />;
+}
+
+if (!session) {
+  return <AuthScreen />;
+}
+
+return (
+  <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+        <Text style={styles.title}>SwachhLens</Text>
+        <TouchableOpacity onPress={() => supabase.auth.signOut()} style={{ paddingTop: 14 }}>
+          <Text style={{ color: colors.mist, fontFamily: fonts.body, fontSize: 13 }}>Log out</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>My Reports</Text>
-        {myReports.map((r) => (
-          <View key={r.id} style={{ backgroundColor: "#132618", padding: 14, borderRadius: 12, marginBottom: 10 }}>
-            <Text style={{ color: "#fff", fontWeight: "600", textTransform: "capitalize" }}>
-              {r.category ? r.category.replace(/_/g, " ") : "Pending classification"}
-            </Text>
-            <Text style={{ color: "#6fcf97", marginTop: 4, textTransform: "uppercase", fontSize: 12 }}>
-              {r.status}
-            </Text>
-            <Text style={{ color: "#888", marginTop: 4, fontSize: 12 }}>
-              {new Date(r.reported_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-            </Text>
-          </View>
-        ))}
       </View>
-    );
-  }
 
+      <TabBar activeTab={activeTab} onChange={setActiveTab} />
 
-  return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-    <View style={styles.container}>
-      <Text style={styles.title}>Report Waste</Text>
-      <TouchableOpacity onPress={openMyReports} style={{ marginBottom: 16 }}>
-        <Text style={{ color: "#6fcf97" }}>View My Reports →</Text>
-      </TouchableOpacity>
-
-      {stats && (
-        <View style={{ flexDirection: "row", justifyContent: "space-between", backgroundColor: "#132618", borderRadius: 12, padding: 14, marginBottom: 16 }}>
-          <View style={{ alignItems: "center" }}>
-            <Text style={{ color: "#6fcf97", fontSize: 20, fontWeight: "700" }}>{stats.total_reports}</Text>
-            <Text style={{ color: "#888", fontSize: 12 }}>Reports</Text>
-          </View>
-          <View style={{ alignItems: "center" }}>
-            <Text style={{ color: "#6fcf97", fontSize: 20, fontWeight: "700" }}>{stats.total_weight_kg.toFixed(1)} kg</Text>
-            <Text style={{ color: "#888", fontSize: 12 }}>Waste flagged</Text>
-          </View>
-          <View style={{ alignItems: "center" }}>
-            <Text style={{ color: "#6fcf97", fontSize: 20, fontWeight: "700" }}>{stats.resolved_count}</Text>
-            <Text style={{ color: "#888", fontSize: 12 }}>Resolved</Text>
-          </View>
-        </View>
-      )}
-      
-      <TouchableOpacity onPress={() => supabase.auth.signOut()} style={{ position: "absolute", top: 60, right: 20 }}>
-        <Text style={{ color: "#6fcf97" }}>Log out</Text>
-      </TouchableOpacity>
-
-      {photo ? (
-        <Image source={{ uri: photo.uri }} style={styles.preview} />
-      ) : (
-        <TouchableOpacity style={styles.cameraBox} onPress={takePhoto}>
-          <Text style={styles.cameraBoxText}>Tap to take a photo</Text>
-        </TouchableOpacity>
-      )}
-
-      {photo && (
-        <TouchableOpacity style={styles.retakeButton} onPress={takePhoto}>
-          <Text style={styles.retakeButtonText}>Retake photo</Text>
-        </TouchableOpacity>
-      )}
-
-      <TextInput
-        style={styles.input}
-        placeholder="Add a description (optional)"
-        placeholderTextColor="#888"
-        value={description}
-        onChangeText={setDescription}
-        multiline
-      />
-
-      <TouchableOpacity
-        style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
-        onPress={submitReport}
-        disabled={submitting}
-      >
-        {submitting ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.submitButtonText}>Submit Report</Text>
-        )}
-      </TouchableOpacity>
-    </View>
-    </TouchableWithoutFeedback>
-  );
+      {activeTab === "report" && <ReportTab />}
+      {activeTab === "history" && <HistoryTab reports={myReports} />}
+      {activeTab === "impact" && <ImpactTab stats={stats} />}
+    </ScrollView>
+  </TouchableWithoutFeedback>
+);
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0d1b0f",
+    backgroundColor: colors.ink,
     paddingTop: 70,
     paddingHorizontal: 20,
   },
   title: {
-    color: "#fff",
-    fontSize: 26,
-    fontWeight: "700",
+    color: colors.paper,
+    fontSize: 28,
+    fontFamily: fonts.display,
     marginBottom: 20,
   },
   cameraBox: {
     height: 280,
-    borderRadius: 16,
+    borderRadius: 4,
     borderWidth: 2,
-    borderColor: "#2e7d4f",
+    borderColor: colors.marigold,
     borderStyle: "dashed",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#132618",
+    backgroundColor: colors.slate,
   },
   cameraBoxText: {
-    color: "#6fcf97",
-    fontSize: 16,
+    color: colors.marigold,
+    fontSize: 15,
+    fontFamily: fonts.body,
   },
   preview: {
     height: 280,
-    borderRadius: 16,
+    borderRadius: 4,
     marginBottom: 10,
   },
   retakeButton: {
@@ -304,30 +255,32 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   retakeButtonText: {
-    color: "#6fcf97",
+    color: colors.marigold,
+    fontFamily: fonts.body,
   },
   input: {
-    backgroundColor: "#132618",
-    color: "#fff",
-    borderRadius: 12,
+    backgroundColor: colors.slate,
+    color: colors.paper,
+    fontFamily: fonts.body,
+    borderRadius: 4,
     padding: 14,
     marginTop: 16,
     minHeight: 60,
     textAlignVertical: "top",
   },
   submitButton: {
-    backgroundColor: "#2e7d4f",
-    borderRadius: 14,
+    backgroundColor: colors.marigold,
+    borderRadius: 4,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 20,
   },
   submitButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   submitButtonText: {
-    color: "#fff",
+    color: colors.ink,
     fontSize: 16,
-    fontWeight: "600",
+    fontFamily: fonts.bodyMedium,
   },
 });

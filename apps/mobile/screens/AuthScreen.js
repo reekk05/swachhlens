@@ -1,5 +1,6 @@
 import { Keyboard, TouchableWithoutFeedback } from "react-native";
 import { useState } from "react";
+import { colors, fonts } from "../theme";
 import {
   View,
   Text,
