@@ -6,6 +6,7 @@ from schemas.complaint import ComplaintCreateResponse
 from core.storage import upload_complaint_photo
 from core.ai_pipeline import process_complaint
 from core.auth import get_current_user_id
+from core.supabase_client import supabase
 
 router = APIRouter(prefix="/complaints", tags=["complaints"])
 
@@ -70,6 +71,7 @@ def leaderboard(db: Session = Depends(get_db)):
             FROM complaints c
             LEFT JOIN citizen_profiles cp ON cp.id = c.reporter_id
             WHERE c.reporter_id IS NOT NULL
+                AND c.reported_at >= date_trunc('month', now())
             GROUP BY c.reporter_id, cp.display_name
             ORDER BY total_weight_kg DESC
             LIMIT 10
@@ -146,3 +148,27 @@ def my_stats(
         "total_weight_kg": float(row.total_weight_kg),
         "resolved_count": row.resolved_count,
     }
+
+
+@router.delete("/me/account")
+def delete_my_account(
+    db: Session = Depends(get_db),
+    reporter_id: str = Depends(get_current_user_id),
+):
+    if not reporter_id:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    # Anonymize their past reports rather than deleting civic records
+    db.execute(
+        text("UPDATE complaints SET reporter_id = NULL WHERE reporter_id = :id"),
+        {"id": reporter_id},
+    )
+    db.execute(
+        text("DELETE FROM citizen_profiles WHERE id = :id"),
+        {"id": reporter_id},
+    )
+    db.commit()
+
+    supabase.auth.admin.delete_user(reporter_id)
+
+    return {"status": "deleted"}

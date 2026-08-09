@@ -7,6 +7,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Alert } from "react-native";
 import * as FileSystem from "expo-file-system";
 import { decode } from "base64-arraybuffer";
+import { API_URL } from "../config";
 
 export default function ProfileTab({ session }) {
   const [profile, setProfile] = useState(null);
@@ -66,6 +67,35 @@ const pickAvatar = async () => {
   setProfile((prev) => ({ ...prev, avatar_url: cacheBustedUrl }));
 };
 
+const deleteAccount = () => {
+  Alert.alert(
+    "Delete Account",
+    "This permanently deletes your account and profile. Your past reports stay on record for municipal purposes but will no longer be linked to you. This cannot be undone.",
+    [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          const accessToken = currentSession?.access_token;
+
+          const response = await fetch(`${API_URL}/complaints/me/account`, {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+
+          if (response.ok) {
+            await supabase.auth.signOut();
+          } else {
+            Alert.alert("Something went wrong", "Please try again.");
+          }
+        },
+      },
+    ]
+  );
+};
+
   return (
     <View>
       <View style={{ alignItems: "center", marginBottom: 24, paddingTop: 10 }}>
@@ -94,6 +124,14 @@ const pickAvatar = async () => {
         >
           <Feather name="settings" size={18} color={colors.mist} />
           <Text style={{ color: colors.paper, fontFamily: fonts.body, fontSize: 14, marginLeft: 12 }}>Settings</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={deleteAccount}
+          style={{ flexDirection: "row", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: "#2A303B" }}
+        >
+          <Feather name="trash-2" size={18} color={colors.signal} />
+          <Text style={{ color: colors.signal, fontFamily: fonts.body, fontSize: 14, marginLeft: 12 }}>Delete Account</Text>
         </TouchableOpacity>
 
         <TouchableOpacity

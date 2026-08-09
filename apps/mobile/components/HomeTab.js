@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { colors, fonts } from "../theme";
 import { API_URL } from "../config";
@@ -41,32 +41,10 @@ export default function HomeTab({ onGoToReport }) {
         <Feather name="camera" size={28} color={colors.ink} />
       </TouchableOpacity>
 
-      <View
-        style={{
-          backgroundColor: colors.slate,
-          borderRadius: 16,
-          padding: 18,
-          marginBottom: 20,
-          borderWidth: 1,
-          borderColor: colors.mint,
-          borderStyle: "dashed",
-        }}
-      >
-        <Text style={{ color: colors.mint, fontFamily: fonts.bodyMedium, fontSize: 13 }}>
-          🎁 Coming soon
-        </Text>
-        <Text style={{ color: colors.paper, fontFamily: fonts.bodyMedium, fontSize: 15, marginTop: 4 }}>
-          Monthly Top 3 win gift vouchers
-        </Text>
-        <Text style={{ color: colors.mist, fontFamily: fonts.body, fontSize: 12, marginTop: 2 }}>
-          Keep reporting to climb the leaderboard
-        </Text>
-      </View>
-
       <Text style={{ color: colors.paper, fontFamily: fonts.bodyMedium, fontSize: 15, marginBottom: 12 }}>
         Top Reporters
       </Text>
-
+      <ScrollView>
       {leaderboard.length === 0 && (
         <Text style={{ color: colors.mist, fontFamily: fonts.body }}>No data yet.</Text>
       )}
@@ -94,6 +72,28 @@ export default function HomeTab({ onGoToReport }) {
           </Text>
         </View>
       ))}
+      </ScrollView>
+      <View
+        style={{
+          backgroundColor: colors.slate,
+          borderRadius: 16,
+          padding: 18,
+          marginBottom: 20,
+          borderWidth: 1,
+          borderColor: colors.mint,
+          borderStyle: "dashed",
+        }}
+      >
+        <Text style={{ color: colors.mint, fontFamily: fonts.bodyMedium, fontSize: 13 }}>
+          🎁 Coming soon
+        </Text>
+        <Text style={{ color: colors.paper, fontFamily: fonts.bodyMedium, fontSize: 15, marginTop: 4 }}>
+          Monthly Top 3 win gift vouchers
+        </Text>
+        <Text style={{ color: colors.mist, fontFamily: fonts.body, fontSize: 12, marginTop: 2 }}>
+          Keep reporting to climb the leaderboard
+        </Text>
+      </View>
     </View>
   );
 }
