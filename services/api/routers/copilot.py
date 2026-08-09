@@ -13,6 +13,8 @@ AI_ENGINE_URL = "http://127.0.0.1:8001"
 
 class CopilotQuestion(BaseModel):
     question: str
+    officer_lat: float | None = None
+    officer_lon: float | None = None
 
 
 class CopilotResponse(BaseModel):
@@ -35,15 +37,34 @@ def ask(
     if not staff_check:
         raise HTTPException(status_code=403, detail="Staff access required")
 
-    result = db.execute(text("""
-            SELECT id, category, volume, severity_score, status,
-                   address_text, report_count, reported_at,
-                   recommended_action
-            FROM complaints
-            WHERE status NOT IN ('resolved', 'rejected')
-            ORDER BY severity_score DESC NULLS LAST
-            LIMIT 30
-        """))
+    if payload.officer_lat is not None and payload.officer_lon is not None:
+        result = db.execute(
+            text("""
+                SELECT id, category, volume, severity_score, status,
+                       address_text, report_count, reported_at,
+                       recommended_action,
+                       ST_Distance(
+                           location,
+                           ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography
+                       ) as distance_m
+                FROM complaints
+                WHERE status NOT IN ('resolved', 'rejected')
+                ORDER BY severity_score DESC NULLS LAST
+                LIMIT 30
+            """),
+            {"lat": payload.officer_lat, "lon": payload.officer_lon},
+        )
+    else:
+        result = db.execute(text("""
+                SELECT id, category, volume, severity_score, status,
+                       address_text, report_count, reported_at,
+                       recommended_action, NULL as distance_m
+                FROM complaints
+                WHERE status NOT IN ('resolved', 'rejected')
+                ORDER BY severity_score DESC NULLS LAST
+                LIMIT 30
+            """))
+
     rows = result.fetchall()
 
     complaints_data = [
@@ -57,6 +78,9 @@ def ask(
             "report_count": row.report_count,
             "reported_at": str(row.reported_at),
             "recommended_action": row.recommended_action,
+            "distance_from_you_km": (
+                round(row.distance_m / 1000, 2) if row.distance_m is not None else None
+            ),
         }
         for row in rows
     ]

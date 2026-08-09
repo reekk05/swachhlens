@@ -7,6 +7,7 @@ import DashboardTabs from "@/components/DashboardTabs";
 import QueueTab from "@/components/QueueTab";
 import { Bot } from "lucide-react";
 import { Truck } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 
 const ComplaintMap = dynamic(() => import("@/components/ComplaintMap"), { ssr: false });
 const RouteMap = dynamic(() => import("@/components/RouteMap"), { ssr: false });
@@ -133,23 +134,34 @@ const askCopilot = async () => {
   const { data: { session } } = await supabase.auth.getSession();
   const accessToken = session?.access_token;
 
-  try {
-    const response = await fetch("http://localhost:8000/copilot/ask", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ question: copilotQuestion }),
-    });
-
-    const data = await response.json();
-    setCopilotAnswer(data.answer || "No response received.");
-  } catch {
-    setCopilotAnswer("Something went wrong reaching the copilot.");
-  } finally {
-    setCopilotLoading(false);
-  }
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      try {
+        const response = await fetch("http://localhost:8000/copilot/ask", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            question: copilotQuestion,
+            officer_lat: position.coords.latitude,
+            officer_lon: position.coords.longitude,
+          }),
+        });
+        const data = await response.json();
+        setCopilotAnswer(data.answer || "No response received.");
+      } catch {
+        setCopilotAnswer("Something went wrong reaching the copilot.");
+      } finally {
+        setCopilotLoading(false);
+      }
+    },
+    () => {
+      setCopilotAnswer("Location access is needed to answer distance-based questions.");
+      setCopilotLoading(false);
+    }
+  );
 };
 
 const getRoute = async () => {
@@ -273,11 +285,11 @@ const toggleSelect = (id: string) => {
       {copilotLoading ? "..." : "Ask"}
     </button>
   </div>
-  {copilotAnswer && (
-    <p className="bg-mint text-ink rounded-lg px-5 font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
-      {copilotAnswer}
-    </p>
-  )}
+{copilotAnswer && (
+  <div className="text-mist text-base mt-4 border-t border-border pt-4 prose prose-invert prose-base max-w-none prose-strong:text-paper prose-headings:text-paper">
+    <ReactMarkdown>{copilotAnswer}</ReactMarkdown>
+  </div>
+)}
 </div>
 )}
 {activeTab==="dispatch" && (
