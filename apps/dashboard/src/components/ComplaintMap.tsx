@@ -21,8 +21,15 @@ function severityColor(score: number | null) {
   return "#43a047";
 }
 
-export default function ComplaintMap({ complaints }: { complaints: MapComplaint[] }) {
-  const center: [number, number] =
+export default function ComplaintMap({
+  complaints,
+  selectedIds,
+  onToggleSelect,
+}: {
+  complaints: MapComplaint[];
+  selectedIds: string[];
+  onToggleSelect: (id: string) => void;
+}) {  const center: [number, number] =
     complaints.length > 0
       ? [complaints[0].latitude, complaints[0].longitude]
       : [20.2961, 85.8245];
@@ -33,24 +40,33 @@ export default function ComplaintMap({ complaints }: { complaints: MapComplaint[
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; OpenStreetMap contributors'
       />
-      {complaints.map((c) => (
-        <CircleMarker
-          key={c.id}
-          center={[c.latitude, c.longitude]}
-          radius={10}
-          pathOptions={{ color: severityColor(c.severity_score), fillColor: severityColor(c.severity_score), fillOpacity: 0.7 }}
-        >
-          <Popup>
+{complaints.map((c) => {
+  const isSelected = selectedIds.includes(c.id);
+  return (
+    <CircleMarker
+      key={c.id}
+      center={[c.latitude, c.longitude]}
+      radius={isSelected ? 13 : 10}
+      pathOptions={{
+        color: isSelected ? "#3EE89A" : severityColor(c.severity_score),
+        fillColor: severityColor(c.severity_score),
+        fillOpacity: 0.7,
+        weight: isSelected ? 3 : 1,
+      }}
+      eventHandlers={{ click: () => onToggleSelect(c.id) }}
+    >          <Popup>
             <strong>{c.category?.replace(/_/g, " ") || "Pending"}</strong>
             <br />
             Severity: {c.severity_score ?? "—"}
             <br />
             {c.address_text || "Location pending"}
             <br />
-            Status: {c.status}
-          </Popup>
-        </CircleMarker>
-      ))}
-    </MapContainer>
+Status: {c.status}
+        <br />
+        <em>{isSelected ? "Selected — click to deselect" : "Click to select for dispatch"}</em>
+      </Popup>
+    </CircleMarker>
+  );
+})}    </MapContainer>
   );
 }

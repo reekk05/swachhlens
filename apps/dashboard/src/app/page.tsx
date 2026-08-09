@@ -1,13 +1,15 @@
 "use client";
-
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import dynamic from "next/dynamic";
+import DashboardTabs from "@/components/DashboardTabs";
+import QueueTab from "@/components/QueueTab";
+import { Bot } from "lucide-react";
+import { Truck } from "lucide-react";
 
 const ComplaintMap = dynamic(() => import("@/components/ComplaintMap"), { ssr: false });
-
+const RouteMap = dynamic(() => import("@/components/RouteMap"), { ssr: false });
 
 type Complaint = {
   id: string;
@@ -20,6 +22,9 @@ type Complaint = {
   reported_at: string;
   latitude: number;
   longitude: number;
+  rejection_reason?: string | null;
+  reporter_name?: string | null;
+  reporter_avatar?: string | null;
 };
 
 export default function Home() {
@@ -30,6 +35,10 @@ export default function Home() {
   const [copilotLoading, setCopilotLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [routeResult, setRouteResult] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"queue" | "map" | "copilot" | "dispatch">("queue");
+  const [routeStart, setRouteStart] = useState<{ lat: number; lon: number } | null>(null);
+  const [routeGeometry, setRouteGeometry] = useState<[number, number][]>([]);
+
   const router = useRouter();
   const supabase = createClient();
 
@@ -43,8 +52,8 @@ export default function Home() {
       }
 
       const { data, error } = await supabase
-        .from("complaints_with_coords")
-        .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude")
+        .from("complaints_full")
+        .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar")
         .order("severity_score", { ascending: false, nullsFirst: false });
 
       if (!error && data) {
@@ -78,8 +87,8 @@ export default function Home() {
   alert(`Status: ${result.status}\nAI says: ${result.verification.reasoning}`);
 
   const { data } = await supabase
-    .from("complaints_with_coords")
-    .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude")
+    .from("complaints_full")
+    .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar")
     .order("severity_score", { ascending: false, nullsFirst: false });
 
   if (data) setComplaints(data);
@@ -108,8 +117,8 @@ const handleReject = async (complaintId: string) => {
   alert(`Status: ${result.status}`);
 
   const { data } = await supabase
-    .from("complaints_with_coords")
-    .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude")
+    .from("complaints_full")
+    .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar")
     .order("severity_score", { ascending: false, nullsFirst: false });
 
   if (data) setComplaints(data);
@@ -142,27 +151,63 @@ const askCopilot = async () => {
     setCopilotLoading(false);
   }
 };
+
 const getRoute = async () => {
   if (selectedIds.length === 0) return;
 
-  const { data: { session } } = await supabase.auth.getSession();
-  const accessToken = session?.access_token;
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    const { latitude, longitude } = position.coords;
 
-  const response = await fetch("http://localhost:8000/staff/route", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({
-      complaint_ids: selectedIds,
-      start_lat: 20.2961,
-      start_lon: 85.8245,
-    }),
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+
+    const response = await fetch("http://localhost:8000/staff/route", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        complaint_ids: selectedIds,
+        start_lat: latitude,
+        start_lon: longitude,
+      }),
+    });
+
+const data = await response.json();
+const stops = data.route || [];
+setRouteResult(stops);
+setRouteStart({ lat: latitude, lon: longitude });
+
+if (stops.length > 0) {
+  fetchRoadRoute({ lat: latitude, lon: longitude }, stops);
+}
+  }, () => {
+    alert("Location access is needed to plan a route from your current position.");
   });
+};
 
-  const data = await response.json();
-  setRouteResult(data.route || []);
+
+const fetchRoadRoute = async (start: { lat: number; lon: number }, stops: any[]) => {
+  const coords = [
+    `${start.lon},${start.lat}`,
+    ...stops.map((s) => `${s.longitude},${s.latitude}`),
+  ].join(";");
+
+  try {
+    const res = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
+    );
+    const data = await res.json();
+    if (data.routes && data.routes[0]) {
+      const geoPoints = data.routes[0].geometry.coordinates.map(
+        ([lng, lat]: [number, number]) => [lat, lng] as [number, number]
+      );
+      setRouteGeometry(geoPoints);
+    }
+  } catch (e) {
+    setRouteGeometry([]);
+  }
 };
 
 const toggleSelect = (id: string) => {
@@ -177,7 +222,7 @@ const toggleSelect = (id: string) => {
 
   return (
     <div className="min-h-screen bg-[#0d1b0f] text-white p-10">
-          <div className="flex justify-between items-center mb-6">
+    <div className="flex justify-between items-center mb-6">
       <h1 className="text-3xl font-bold">SwachhLens — Complaint Queue</h1>
       <button
         onClick={async () => {
@@ -189,17 +234,28 @@ const toggleSelect = (id: string) => {
         Log out
       </button>
     </div>
+    <DashboardTabs active={activeTab} onChange={setActiveTab} />
 
       {complaints.length === 0 && (
         <p className="text-gray-400">No complaints yet.</p>
       )}
-      {complaints.length > 0 && (
-        <div className="mb-8">
-          <ComplaintMap complaints={complaints} />
-        </div>
+{activeTab === "map" && complaints.length > 0 && (
+  <div className="mb-8">
+    <div className="flex gap-4 mb-4 text-xs text-mist">
+      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#e53935]" /> Critical (75+)</span>
+      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#fb8c00]" /> High (50-74)</span>
+      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#fdd835]" /> Medium (25-49)</span>
+      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#43a047]" /> Low (0-24)</span>
+    </div>
+    <ComplaintMap complaints={complaints} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
+  </div>
 )}
-<div className="bg-[#132618] rounded-xl p-5 border border-[#2e7d4f] mb-8">
-  <h2 className="text-lg font-semibold mb-3">🤖 Municipal Copilot</h2>
+{activeTab==="copilot" && (
+<div className="bg-slate rounded-xl p-6 border border-border mb-8">
+  <div className="flex items-center gap-2 mb-4">
+    <Bot size={20} className="text-mint" />
+    <h2 className="text-lg font-body font-bold">Municipal Copilot</h2>
+  </div>
   <div className="flex gap-2">
     <input
       type="text"
@@ -207,24 +263,29 @@ const toggleSelect = (id: string) => {
       onChange={(e) => setCopilotQuestion(e.target.value)}
       onKeyDown={(e) => e.key === "Enter" && askCopilot()}
       placeholder="Ask e.g. 'What are the top 3 most urgent complaints?'"
-      className="flex-1 bg-[#0d1b0f] text-white rounded-lg p-3 border border-[#2e7d4f]"
+      className="flex-1 bg-ink text-paper rounded-lg p-3 border border-border focus:border-mint outline-none transition-colors"
     />
     <button
       onClick={askCopilot}
       disabled={copilotLoading}
-      className="bg-[#2e7d4f] text-white rounded-lg px-5 font-semibold"
+      className="bg-mint text-ink rounded-lg px-5 font-semibold hover:opacity-90 transition-opacity"
     >
       {copilotLoading ? "..." : "Ask"}
     </button>
   </div>
   {copilotAnswer && (
-    <p className="text-gray-300 text-sm mt-4 whitespace-pre-wrap border-t border-[#2e7d4f] pt-4">
+    <p className="bg-mint text-ink rounded-lg px-5 font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
       {copilotAnswer}
     </p>
   )}
 </div>
-<div className="bg-[#132618] rounded-xl p-5 border border-[#2e7d4f] mb-8">
-  <h2 className="text-lg font-semibold mb-3">🚚 Route Planner</h2>
+)}
+{activeTab==="dispatch" && (
+<div className="bg-slate rounded-xl p-6 border border-border mb-8">
+  <div className="flex items-center gap-2 mb-4">
+    <Truck size={20} className="text-mint" />
+    <h2 className="text-lg font-body font-bold">Dispatch Planner</h2>
+  </div>
   <p className="text-sm text-gray-400 mb-3">{selectedIds.length} complaint(s) selected</p>
   <button
     onClick={getRoute}
@@ -232,75 +293,44 @@ const toggleSelect = (id: string) => {
     className="bg-[#2e7d4f] text-white rounded-lg px-5 py-2 font-semibold disabled:opacity-50"
   >
     Get Optimized Route
-  </button>
-  {routeResult.length > 0 && (
-    <ol className="mt-4 space-y-2">
+</button>
+{routeResult.length > 0 && routeStart && (
+  <>
+    <div className="mb-4 mt-4">
+      <RouteMap stops={routeResult} startLat={routeStart.lat} startLon={routeStart.lon} roadGeometry={routeGeometry} />
+    </div>
+    <ol className="space-y-2">
       {routeResult.map((stop, i) => (
-        <li key={stop.id} className="text-sm text-gray-300">
+        <li key={stop.id} className="text-sm text-mist">
           {i + 1}. {stop.category?.replace(/_/g, " ")} — {stop.address || "Unknown location"}
           {" "}({stop.distance_from_previous_m}m from previous)
         </li>
       ))}
     </ol>
-  )}
+  </>
+)}
 </div>
-      <div className="space-y-4">
-        {complaints.map((c) => (
-          <div key={c.id} className="bg-[#132618] rounded-xl p-5 border border-[#2e7d4f]">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-lg font-semibold capitalize">
-                  {c.category?.replace(/_/g, " ") || "Pending classification"}
-                </p>
-                <p className="text-sm text-gray-400">{c.address_text || "Location pending"}</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {new Date(c.reported_at).toLocaleString("en-IN", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-bold text-[#6fcf97]">
-                  {c.severity_score ?? "—"}
-                </p>
-                <p className="text-xs text-gray-400 uppercase">{c.status}</p>
-              </div>
-            </div>
-            {c.recommended_action && (
-              <p className="text-sm text-gray-300 mt-3 border-t border-[#2e7d4f] pt-3">
-                {c.recommended_action}
-              </p>
-            )}
-            <label className="flex items-center gap-2 mt-3 text-sm text-gray-300">
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(c.id)}
-                onChange={() => toggleSelect(c.id)}
-              />
-              Select for route
-            </label>
-            {c.status !== "resolved" && c.status !== "rejected" && (
-              <button
-                onClick={() => handleReject(c.id)}
-                className="text-red-400 text-sm mt-2 border border-red-900 rounded-lg px-3 py-1"
-              >
-                Reject
-              </button>
-            )}
-            {c.status !== "resolved" && (
-              <div className="mt-3 border-t border-[#2e7d4f] pt-3">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleResolve(c.id, e.target.files?.[0])}
-                  className="text-sm text-gray-300"
-                />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+)}
+{activeTab === "queue" && (
+        <QueueTab
+          complaints={complaints}
+          onResolve={handleResolve}
+          onReject={handleReject}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+        />
+      )}
+{selectedIds.length > 0 && activeTab !== "dispatch" && (
+  <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate border border-border rounded-full shadow-2xl shadow-black/40 px-6 py-3 flex items-center gap-4">
+    <span className="text-sm text-paper">{selectedIds.length} selected</span>
+    <button
+      onClick={() => setActiveTab("dispatch")}
+      className="bg-mint text-ink text-sm font-semibold rounded-full px-4 py-1.5 hover:opacity-90 transition-opacity"
+    >
+      View Optimized Route →
+    </button>
+  </div>
+)}
     </div>
   );
 }
