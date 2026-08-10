@@ -87,11 +87,12 @@ export default function Home() {
   const result = await response.json();
   alert(`Status: ${result.status}\nAI says: ${result.verification.reasoning}`);
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("complaints_full")
     .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar")
     .order("severity_score", { ascending: false, nullsFirst: false });
-
+    
+  if (error) console.error("Refetch failed:", error);
   if (data) setComplaints(data);
 };
 

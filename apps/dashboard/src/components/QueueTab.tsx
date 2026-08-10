@@ -195,13 +195,9 @@ export default function QueueTab({
             {c.status === "resolved" && (
               <div className="mt-3 border-t border-border pt-3">
                 <div className="flex items-center gap-2 text-sm text-mint">
-                  <span>✓ Verified and resolved by AI</span>
+                  <span className="text-sm text-mint">✓ Verified and resolved by AI</span>
+                  <ResolvedPhotos complaintId={c.id} />
                 </div>
-                {/* 
-                  Added the missing component here so photos 
-                  actually render for resolved complaints!
-                */}
-                <ResolvedPhotos complaintId={c.id} />
               </div>
             )}
 

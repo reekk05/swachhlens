@@ -66,6 +66,7 @@ async def resolve_complaint(
     """),
         {"status": new_status, "photo_url": photo_path, "id": complaint_id},
     )
+    db.commit()
 
     return {"status": new_status, "verification": verification}
 
