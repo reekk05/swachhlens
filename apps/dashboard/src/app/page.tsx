@@ -8,6 +8,8 @@ import QueueTab from "@/components/QueueTab";
 import { Bot } from "lucide-react";
 import { Truck } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { ToastContainer, ToastData } from "@/components/Toast";
+import RejectModal from "@/components/RejectModal";
 
 const ComplaintMap = dynamic(() => import("@/components/ComplaintMap"), { ssr: false });
 const RouteMap = dynamic(() => import("@/components/RouteMap"), { ssr: false });
@@ -36,10 +38,20 @@ export default function Home() {
   const [copilotLoading, setCopilotLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [routeResult, setRouteResult] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"queue" | "map" | "copilot" | "dispatch">("queue");
+  const [activeTab, setActiveTab] = useState<"queue" | "active" | "map" | "copilot" | "dispatch">("queue");
   const [routeStart, setRouteStart] = useState<{ lat: number; lon: number } | null>(null);
   const [routeGeometry, setRouteGeometry] = useState<[number, number][]>([]);
+  const [toasts, setToasts] = useState<ToastData[]>([]);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
 
+  const showToast = (type: ToastData["type"], title: string, message?: string) => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, type, title, message }]);
+  };
+
+  const dismissToast = (id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
   const router = useRouter();
   const supabase = createClient();
 
@@ -85,8 +97,11 @@ export default function Home() {
   );
 
   const result = await response.json();
-  alert(`Status: ${result.status}\nAI says: ${result.verification.reasoning}`);
-
+  if (result.status === "resolved") {
+    showToast("success", "Complaint resolved", result.verification.reasoning);
+  } else {
+    showToast("info", "Not yet resolved — needs more work", result.verification.reasoning);
+  }
   const { data, error } = await supabase
     .from("complaints_full")
     .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar")
@@ -95,16 +110,17 @@ export default function Home() {
   if (error) console.error("Refetch failed:", error);
   if (data) setComplaints(data);
 };
-
-const handleReject = async (complaintId: string) => {
-  const reason = prompt("Reason for rejecting this complaint:");
-  if (!reason || !reason.trim()) return;
+const handleReject = (complaintId: string) => {
+  setRejectingId(complaintId);
+};
+const confirmReject = async (reason: string) => {
+  if (!rejectingId) return;
 
   const { data: { session } } = await supabase.auth.getSession();
   const accessToken = session?.access_token;
 
   const response = await fetch(
-    `http://localhost:8000/staff/complaints/${complaintId}/reject`,
+    `http://localhost:8000/staff/complaints/${rejectingId}/reject`,
     {
       method: "POST",
       headers: {
@@ -115,8 +131,13 @@ const handleReject = async (complaintId: string) => {
     }
   );
 
-  const result = await response.json();
-  alert(`Status: ${result.status}`);
+  if (response.ok) {
+    showToast("success", "Complaint rejected", reason);
+  } else {
+    showToast("error", "Something went wrong");
+  }
+
+  setRejectingId(null);
 
   const { data } = await supabase
     .from("complaints_full")
@@ -200,6 +221,35 @@ if (stops.length > 0) {
   });
 };
 
+const confirmDispatch = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+
+  const response = await fetch("http://localhost:8000/staff/complaints/dispatch", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ complaint_ids: selectedIds }),
+  });
+
+  if (response.ok) {
+    showToast("success", "Crews dispatched", `${selectedIds.length} complaint(s) sent for cleanup`);
+    setSelectedIds([]);
+    setRouteResult([]);
+    setActiveTab("active");
+  } else {
+    showToast("error", "Dispatch failed");
+  }
+
+  const { data } = await supabase
+    .from("complaints_full")
+    .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar")
+    .order("severity_score", { ascending: false, nullsFirst: false });
+
+  if (data) setComplaints(data);
+};
 
 const fetchRoadRoute = async (start: { lat: number; lon: number }, stops: any[]) => {
   const coords = [
@@ -232,6 +282,8 @@ const toggleSelect = (id: string) => {
   if (loading) {
     return <div className="p-10 text-white bg-[#0d1b0f] min-h-screen">Loading complaints...</div>;
   }
+const queueComplaints = complaints.filter((c) => c.status === "pending" || c.status === "verified");
+const activeComplaints = complaints.filter((c) => c.status === "dispatched" || c.status === "in_progress");
 
   return (
     <div className="min-h-screen bg-[#0d1b0f] text-white p-10">
@@ -320,19 +372,34 @@ const toggleSelect = (id: string) => {
         </li>
       ))}
     </ol>
+    <button
+      onClick={confirmDispatch}
+      className="w-full mt-4 bg-mint text-ink rounded-lg py-3 font-semibold hover:opacity-90 transition-opacity"
+    >
+      Confirm Dispatch — Send {selectedIds.length} Crew{selectedIds.length !== 1 ? "s" : ""}
+    </button>
   </>
 )}
 </div>
 )}
 {activeTab === "queue" && (
         <QueueTab
-          complaints={complaints}
+          complaints={queueComplaints}
           onResolve={handleResolve}
           onReject={handleReject}
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
         />
       )}
+{activeTab === "active" && (
+  <QueueTab
+    complaints={activeComplaints}
+    onResolve={handleResolve}
+    onReject={handleReject}
+    selectedIds={selectedIds}
+    onToggleSelect={toggleSelect}
+  />
+)}
 {selectedIds.length > 0 && activeTab !== "dispatch" && (
   <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate border border-border rounded-full shadow-2xl shadow-black/40 px-6 py-3 flex items-center gap-4">
     <span className="text-sm text-paper">{selectedIds.length} selected</span>
@@ -344,6 +411,11 @@ const toggleSelect = (id: string) => {
     </button>
   </div>
 )}
+{rejectingId && (
+  <RejectModal onConfirm={confirmReject} onCancel={() => setRejectingId(null)} />
+)}
+
+<ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

@@ -188,3 +188,39 @@ def staff_signup(payload: StaffSignupRequest, db: Session = Depends(get_db)):
     db.commit()
 
     return {"status": "created", "user_id": user_id}
+
+
+class DispatchRequest(BaseModel):
+    complaint_ids: list[str]
+
+
+@router.post("/complaints/dispatch")
+def dispatch_complaints(
+    payload: DispatchRequest,
+    db: Session = Depends(get_db),
+    staff_id: str = Depends(get_current_user_id),
+):
+    if not staff_id:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    staff_check = db.execute(
+        text("SELECT id FROM staff_profiles WHERE id = :id"),
+        {"id": staff_id},
+    ).fetchone()
+    if not staff_check:
+        raise HTTPException(status_code=403, detail="Staff access required")
+
+    placeholders = ", ".join([f":id{i}" for i in range(len(payload.complaint_ids))])
+    params = {f"id{i}": cid for i, cid in enumerate(payload.complaint_ids)}
+
+    db.execute(
+        text(f"""
+            UPDATE complaints
+            SET status = 'dispatched'
+            WHERE id IN ({placeholders})
+        """),
+        params,
+    )
+    db.commit()
+
+    return {"status": "dispatched", "count": len(payload.complaint_ids)}

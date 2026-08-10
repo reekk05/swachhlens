@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { CheckCircle2 } from "lucide-react";
 
 type Complaint = {
   id: string;
@@ -48,6 +49,7 @@ const statusStyles: Record<string, string> = {
 };
 
 function ResolvedPhotos({ complaintId }: { complaintId: string }) {
+  const [enlarged, setEnlarged] = useState<string | null>(null);
   const [photos, setPhotos] = useState<{
     before_photo_url: string | null;
     after_photo_url: string | null;
@@ -63,27 +65,33 @@ function ResolvedPhotos({ complaintId }: { complaintId: string }) {
   if (!photos) return null;
 
   return (
-    <div className="flex gap-3 mt-3">
+    <div className="flex gap-4">
       {photos.before_photo_url && (
         <div>
-          <p className="text-xs text-mist mb-1">Before</p>
-          <img
-            src={photos.before_photo_url}
-            alt="Condition before resolution"
-            className="w-24 h-24 object-cover rounded-lg"
-          />
-        </div>
-      )}
-      {photos.after_photo_url && (
-        <div>
-          <p className="text-xs text-mist mb-1">After</p>
-          <img
-            src={photos.after_photo_url}
-            alt="Condition after resolution"
-            className="w-24 h-24 object-cover rounded-lg"
-          />
-        </div>
-      )}
+          <p className="text-xs text-mist mb-1.5 uppercase tracking-wide font-medium">Before</p>      <img
+        src={photos.before_photo_url}
+        onClick={() => setEnlarged(photos.before_photo_url)}
+        className="w-28 h-28 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity"
+      />
+    </div>
+  )}
+  {photos.after_photo_url && (
+    <div>
+      <p className="text-xs text-mist mb-1.5 uppercase tracking-wide font-medium">After</p>
+      <img
+        src={photos.after_photo_url}
+        onClick={() => setEnlarged(photos.after_photo_url)}
+        className="w-28 h-28 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity border border-border"       />
+    </div>
+  )}
+  {enlarged && (
+    <div
+      onClick={() => setEnlarged(null)}
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 cursor-pointer"
+    >
+      <img src={enlarged} className="max-w-3xl max-h-[85vh] rounded-lg" />
+    </div>
+  )}
     </div>
   );
 }
@@ -122,7 +130,7 @@ export default function QueueTab({
 
       {/* Complaints List */}
       <div className="space-y-4">
-        {complaints.map((c) => (
+        {complaints.map((c, index) => (
           <div
             key={c.id}
             className="bg-slate rounded-xl p-5 border-l-4"
@@ -133,12 +141,8 @@ export default function QueueTab({
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-lg font-semibold capitalize">
-                  {c.category
-                    ? `${categoryIcons[c.category] || ""} ${c.category.replace(
-                        /_/g,
-                        " "
-                      )}`
-                    : "Pending classification"}
+                  <span className="text-mist font-normal mr-2">#{index + 1}</span>
+                  {c.category ? `${categoryIcons[c.category] || ""} ${c.category.replace(/_/g, " ")}` : "Pending classification"}
                 </p>
                 <p className="text-sm text-mist">
                   {c.address_text || "Location pending"}
@@ -193,14 +197,14 @@ export default function QueueTab({
             )}
 
             {c.status === "resolved" && (
-              <div className="mt-3 border-t border-border pt-3">
-                <div className="flex items-center gap-2 text-sm text-mint">
-                  <span className="text-sm text-mint">✓ Verified and resolved by AI</span>
-                  <ResolvedPhotos complaintId={c.id} />
+              <div className="mt-4 border-t border-border pt-4">
+                <div className="flex items-center gap-1.5 text-sm text-mint mb-3">
+                  <CheckCircle2 size={16} />
+                  <span>Verified and resolved by AI</span>
                 </div>
+                <ResolvedPhotos complaintId={c.id} />
               </div>
             )}
-
             {c.status !== "resolved" && c.status !== "rejected" && (
               <div className="flex items-center gap-3 mt-4 border-t border-border pt-4">
                 <label className="flex items-center gap-2 text-sm text-mist cursor-pointer">
