@@ -192,6 +192,7 @@ def staff_signup(payload: StaffSignupRequest, db: Session = Depends(get_db)):
 
 class DispatchRequest(BaseModel):
     complaint_ids: list[str]
+    worker_id: str
 
 
 @router.post("/complaints/dispatch")
@@ -210,17 +211,82 @@ def dispatch_complaints(
     if not staff_check:
         raise HTTPException(status_code=403, detail="Staff access required")
 
+    worker_check = db.execute(
+        text("SELECT id FROM staff_profiles WHERE id = :id AND role = 'field_officer'"),
+        {"id": payload.worker_id},
+    ).fetchone()
+    if not worker_check:
+        raise HTTPException(status_code=400, detail="Invalid worker")
+
     placeholders = ", ".join([f":id{i}" for i in range(len(payload.complaint_ids))])
     params = {f"id{i}": cid for i, cid in enumerate(payload.complaint_ids)}
+    params["worker_id"] = payload.worker_id
 
     db.execute(
         text(f"""
             UPDATE complaints
-            SET status = 'dispatched'
+            SET status = 'dispatched',
+                assigned_worker_id = :worker_id,
+                dispatched_at = now()
             WHERE id IN ({placeholders})
         """),
         params,
     )
     db.commit()
 
-    return {"status": "dispatched", "count": len(payload.complaint_ids)}
+    return {
+        "status": "dispatched",
+        "count": len(payload.complaint_ids),
+        "worker_id": payload.worker_id,
+    }
+
+
+class DispatchRequest(BaseModel):
+    complaint_ids: list[str]
+    worker_id: str
+
+
+@router.post("/complaints/dispatch")
+def dispatch_complaints(
+    payload: DispatchRequest,
+    db: Session = Depends(get_db),
+    staff_id: str = Depends(get_current_user_id),
+):
+    if not staff_id:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    staff_check = db.execute(
+        text("SELECT id FROM staff_profiles WHERE id = :id"),
+        {"id": staff_id},
+    ).fetchone()
+    if not staff_check:
+        raise HTTPException(status_code=403, detail="Staff access required")
+
+    worker_check = db.execute(
+        text("SELECT id FROM staff_profiles WHERE id = :id AND role = 'field_officer'"),
+        {"id": payload.worker_id},
+    ).fetchone()
+    if not worker_check:
+        raise HTTPException(status_code=400, detail="Invalid worker")
+
+    placeholders = ", ".join([f":id{i}" for i in range(len(payload.complaint_ids))])
+    params = {f"id{i}": cid for i, cid in enumerate(payload.complaint_ids)}
+    params["worker_id"] = payload.worker_id
+
+    db.execute(
+        text(f"""
+            UPDATE complaints
+            SET status = 'dispatched',
+                assigned_worker_id = :worker_id,
+                dispatched_at = now()
+            WHERE id IN ({placeholders})
+        """),
+        params,
+    )
+    db.commit()
+
+    return {
+        "status": "dispatched",
+        "count": len(payload.complaint_ids),
+        "worker_id": payload.worker_id,
+    }
