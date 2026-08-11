@@ -82,3 +82,61 @@ def my_stops(
         return {"stops": ordered, "manual_order": stops}
 
     return {"stops": stops, "manual_order": stops}
+
+
+from fastapi import UploadFile, File
+import httpx
+from core.storage import upload_complaint_photo
+
+AI_ENGINE_URL = "http://127.0.0.1:8001"
+
+
+@router.post("/complaints/{complaint_id}/complete")
+async def complete_stop(
+    complaint_id: str,
+    photo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    worker_id: str = Depends(get_current_user_id),
+):
+    if not worker_id:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    ownership_check = db.execute(
+        text(
+            "SELECT id FROM complaints WHERE id = :id AND assigned_worker_id = :worker_id"
+        ),
+        {"id": complaint_id, "worker_id": worker_id},
+    ).fetchone()
+    if not ownership_check:
+        raise HTTPException(status_code=403, detail="This stop is not assigned to you")
+
+    photo_bytes = await photo.read()
+    photo_path = upload_complaint_photo(photo_bytes, photo.content_type)
+
+    try:
+        response = httpx.post(
+            f"{AI_ENGINE_URL}/verify/",
+            files={"photo": ("after.jpg", photo_bytes, photo.content_type)},
+            timeout=30.0,
+        )
+        response.raise_for_status()
+        verification = response.json()
+    except Exception as e:
+        verification = {
+            "waste_removed": None,
+            "confidence": 0,
+            "reasoning": f"Verification unavailable: {str(e)}",
+        }
+
+    db.execute(
+        text("""
+            UPDATE complaints
+            SET status = 'awaiting_confirmation',
+                resolved_photo_url = :photo_url
+            WHERE id = :id
+        """),
+        {"photo_url": photo_path, "id": complaint_id},
+    )
+    db.commit()
+
+    return {"status": "awaiting_confirmation", "verification": verification}
