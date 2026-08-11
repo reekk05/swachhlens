@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect } from "react";
 import { ListChecks, Map, Bot, Truck, Activity } from "lucide-react";
 
-type Tab = "queue" | "active" | "map" | "copilot" | "dispatch";
+type Tab = "queue" | "active" | "map" | "dispatch";
 
 export default function DashboardTabs({
   active,
@@ -16,7 +16,6 @@ export default function DashboardTabs({
     { key: "queue", label: "Queue", icon: ListChecks },
     { key: "active", label: "Active", icon: Activity },
     { key: "map", label: "Map", icon: Map },
-    { key: "copilot", label: "Copilot", icon: Bot },
     { key: "dispatch", label: "Dispatch", icon: Truck },
   ];
 

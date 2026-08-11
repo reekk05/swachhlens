@@ -102,12 +102,14 @@ export default function QueueTab({
   onReject,
   selectedIds,
   onToggleSelect,
+  showSelection = true,
 }: {
   complaints: Complaint[];
   onResolve: (id: string, file: File | undefined) => void;
   onReject: (id: string) => void;
   selectedIds: string[];
   onToggleSelect: (id: string) => void;
+  showSelection?: boolean;
 }) {
   if (complaints.length === 0) {
     return <p className="text-mist">No complaints yet.</p>;
@@ -141,7 +143,7 @@ export default function QueueTab({
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-lg font-semibold capitalize">
-                  <span className="text-mist font-normal mr-2">#{index + 1}</span>
+                  <span className="text-mist font-normal mr-2">#{index + 1} </span>
                   {c.category ? `${categoryIcons[c.category] || ""} ${c.category.replace(/_/g, " ")}` : "Pending classification"}
                 </p>
                 <p className="text-sm text-mist">
@@ -207,6 +209,7 @@ export default function QueueTab({
             )}
             {c.status !== "resolved" && c.status !== "rejected" && (
               <div className="flex items-center gap-3 mt-4 border-t border-border pt-4">
+                {showSelection && (
                 <label className="flex items-center gap-2 text-sm text-mist cursor-pointer">
                   <input
                     type="checkbox"
@@ -216,7 +219,7 @@ export default function QueueTab({
                   />
                   Select for dispatch
                 </label>
-
+                )}
                 <div className="flex-1" />
 
                 <button

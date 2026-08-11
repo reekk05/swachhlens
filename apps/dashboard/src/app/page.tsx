@@ -10,6 +10,7 @@ import { Truck } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { ToastContainer, ToastData } from "@/components/Toast";
 import RejectModal from "@/components/RejectModal";
+import CopilotWidget from "@/components/CopilotWidget";
 
 const ComplaintMap = dynamic(() => import("@/components/ComplaintMap"), { ssr: false });
 const RouteMap = dynamic(() => import("@/components/RouteMap"), { ssr: false });
@@ -173,6 +174,7 @@ const askCopilot = async () => {
         });
         const data = await response.json();
         setCopilotAnswer(data.answer || "No response received.");
+        setCopilotQuestion("");
       } catch {
         setCopilotAnswer("Something went wrong reaching the copilot.");
       } finally {
@@ -315,36 +317,9 @@ const activeComplaints = complaints.filter((c) => c.status === "dispatched" || c
     <ComplaintMap complaints={complaints} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
   </div>
 )}
-{activeTab==="copilot" && (
-<div className="bg-slate rounded-xl p-6 border border-border mb-8">
-  <div className="flex items-center gap-2 mb-4">
-    <Bot size={20} className="text-mint" />
-    <h2 className="text-lg font-body font-bold">Municipal Copilot</h2>
-  </div>
-  <div className="flex gap-2">
-    <input
-      type="text"
-      value={copilotQuestion}
-      onChange={(e) => setCopilotQuestion(e.target.value)}
-      onKeyDown={(e) => e.key === "Enter" && askCopilot()}
-      placeholder="Ask e.g. 'What are the top 3 most urgent complaints?'"
-      className="flex-1 bg-ink text-paper rounded-lg p-3 border border-border focus:border-mint outline-none transition-colors"
-    />
-    <button
-      onClick={askCopilot}
-      disabled={copilotLoading}
-      className="bg-mint text-ink rounded-lg px-5 font-semibold hover:opacity-90 transition-opacity"
-    >
-      {copilotLoading ? "..." : "Ask"}
-    </button>
-  </div>
-{copilotAnswer && (
-  <div className="text-mist text-base mt-4 border-t border-border pt-4 prose prose-invert prose-base max-w-none prose-strong:text-paper prose-headings:text-paper">
-    <ReactMarkdown>{copilotAnswer}</ReactMarkdown>
-  </div>
-)}
-</div>
-)}
+
+
+
 {activeTab==="dispatch" && (
 <div className="bg-slate rounded-xl p-6 border border-border mb-8">
   <div className="flex items-center gap-2 mb-4">
@@ -364,15 +339,25 @@ const activeComplaints = complaints.filter((c) => c.status === "dispatched" || c
     <div className="mb-4 mt-4">
       <RouteMap stops={routeResult} startLat={routeStart.lat} startLon={routeStart.lon} roadGeometry={routeGeometry} />
     </div>
-    <ol className="space-y-2">
-      {routeResult.map((stop, i) => (
-        <li key={stop.id} className="text-sm text-mist">
-          {i + 1}. {stop.category?.replace(/_/g, " ")} — {stop.address || "Unknown location"}
-          {" "}({stop.distance_from_previous_m}m from previous)
-        </li>
-      ))}
-    </ol>
-    <button
+<ol className="space-y-2">
+  {routeResult.map((stop, i) => (
+    <li key={stop.id} className="flex items-center justify-between text-sm text-mist bg-ink rounded-lg px-3 py-2">
+      <span>
+        {i + 1}. {stop.category?.replace(/_/g, " ")} — {stop.address || "Unknown location"}
+        {" "}({stop.distance_from_previous_m}m from previous)
+      </span>
+      <button
+        onClick={() => {
+          setRouteResult((prev) => prev.filter((s) => s.id !== stop.id));
+          setSelectedIds((prev) => prev.filter((id) => id !== stop.id));
+        }}
+        className="text-signal text-xs hover:opacity-70 ml-3"
+      >
+        Remove
+      </button>
+    </li>
+  ))}
+</ol>    <button
       onClick={confirmDispatch}
       className="w-full mt-4 bg-mint text-ink rounded-lg py-3 font-semibold hover:opacity-90 transition-opacity"
     >
@@ -398,6 +383,7 @@ const activeComplaints = complaints.filter((c) => c.status === "dispatched" || c
     onReject={handleReject}
     selectedIds={selectedIds}
     onToggleSelect={toggleSelect}
+    showSelection={false}
   />
 )}
 {selectedIds.length > 0 && activeTab !== "dispatch" && (
@@ -416,6 +402,15 @@ const activeComplaints = complaints.filter((c) => c.status === "dispatched" || c
 )}
 
 <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+<CopilotWidget
+  question={copilotQuestion}
+  onQuestionChange={setCopilotQuestion}
+  answer={copilotAnswer}
+  loading={copilotLoading}
+  onAsk={askCopilot}
+/>
+    
     </div>
   );
 }
