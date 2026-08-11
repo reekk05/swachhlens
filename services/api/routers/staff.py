@@ -161,12 +161,16 @@ class StaffSignupRequest(BaseModel):
     password: str
     full_name: str
     invite_code: str
+    role: str = "field_officer"
 
 
 @router.post("/signup")
 def staff_signup(payload: StaffSignupRequest, db: Session = Depends(get_db)):
     if payload.invite_code != STAFF_INVITE_CODE:
         raise HTTPException(status_code=403, detail="Invalid invite code")
+
+    if payload.role not in ("field_officer", "ward_supervisor"):
+        raise HTTPException(status_code=400, detail="Invalid role")
 
     result = supabase.auth.admin.create_user(
         {
@@ -178,14 +182,21 @@ def staff_signup(payload: StaffSignupRequest, db: Session = Depends(get_db)):
 
     user_id = result.user.id
 
-    db.execute(
-        text("""
-            INSERT INTO staff_profiles (id, full_name, role)
-            VALUES (:id, :full_name, 'field_officer')
-        """),
-        {"id": user_id, "full_name": payload.full_name},
-    )
-    db.commit()
+    try:
+        db.execute(
+            text("""
+                INSERT INTO staff_profiles (id, full_name, role)
+                VALUES (:id, :full_name, :role)
+            """),
+            {"id": user_id, "full_name": payload.full_name, "role": payload.role},
+        )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        supabase.auth.admin.delete_user(user_id)
+        raise HTTPException(
+            status_code=500, detail=f"Signup failed, please try again: {str(e)}"
+        )
 
     return {"status": "created", "user_id": user_id}
 

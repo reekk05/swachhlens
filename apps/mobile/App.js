@@ -12,7 +12,7 @@ import HomeTab from "./components/HomeTab";
 import ProfileTab from "./components/ProfileTab";
 import { useRef } from "react";
 import { Animated } from "react-native";
-
+import RoleSelectScreen from "./screens/RoleSelectScreen";
 
 import {
   StyleSheet,
@@ -43,7 +43,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("home");  const [myReports, setMyReports] = useState([]);
   const [stats, setStats] = useState(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
-
+  const [userRole, setUserRole] = useState(null);
+  const [roleChecked, setRoleChecked] = useState(false);
+  const [entryRole, setEntryRole] = useState(null);
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -61,12 +63,30 @@ export default function App() {
       fetchStats();
     }
   }, [session]);
+
+  useEffect(() => {
+  if (!session) {
+    setRoleChecked(false);
+    return;
+  }
+
+  supabase
+    .from("staff_profiles")
+    .select("role")
+    .eq("id", session.user.id)
+    .single()
+    .then(({ data }) => {
+      setUserRole(data ? data.role : "citizen");
+      setRoleChecked(true);
+    });
+}, [session]);
   
   useEffect(() => {
     if (session && activeTab === "activity") {
       fetchMyReports().then(setMyReports);
     }
   }, [activeTab, session]);
+
 
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -207,10 +227,21 @@ if (!fontsLoaded) {
   return <View style={{ flex: 1, backgroundColor: colors.ink }} />;
 }
 
-if (!session) {
-  return <AuthScreen />;
+if (!session && !entryRole) {
+  return <RoleSelectScreen onSelect={setEntryRole} />;
 }
 
+if (!session) {
+  return <AuthScreen intendedRole={entryRole} onBack={() => setEntryRole(null)} />;
+}
+
+if (!roleChecked) {
+   return <View style={{ flex: 1, backgroundColor: colors.ink }} />;
+  }
+if (userRole === "field_officer") {
+   return <WorkerApp session={session} />; 
+  }
+  
 return (
   
   <View style={{ flex: 1, backgroundColor: colors.ink }}>

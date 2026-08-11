@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+
 export default function StaffSignupPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -11,6 +12,7 @@ export default function StaffSignupPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const [role, setRole] = useState("field_officer");
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +28,7 @@ export default function StaffSignupPage() {
           password,
           full_name: fullName,
           invite_code: inviteCode,
+          role,
         }),
       });
 
@@ -76,6 +79,14 @@ export default function StaffSignupPage() {
           onChange={(e) => setInviteCode(e.target.value)}
           className="w-full bg-ink text-paper rounded-lg p-3 mb-3 border border-border focus:border-mint outline-none"
         />
+        <select
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="w-full bg-ink text-paper rounded-lg p-3 mb-3 border border-border focus:border-mint outline-none"
+        >
+          <option value="field_officer">Field Worker</option>
+          <option value="ward_supervisor">Office Staff (Ward Supervisor)</option>
+        </select>
 
         {error && <p className="text-signal text-sm mb-3">{error}</p>}
 

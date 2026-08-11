@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { ListChecks, Map, Bot, Truck, Activity } from "lucide-react";
+import { ListChecks, Map, Truck, Activity } from "lucide-react";
 
 type Tab = "queue" | "active" | "map" | "dispatch";
 

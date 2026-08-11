@@ -5,9 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import dynamic from "next/dynamic";
 import DashboardTabs from "@/components/DashboardTabs";
 import QueueTab from "@/components/QueueTab";
-import { Bot } from "lucide-react";
 import { Truck } from "lucide-react";
-import ReactMarkdown from "react-markdown";
 import { ToastContainer, ToastData } from "@/components/Toast";
 import RejectModal from "@/components/RejectModal";
 import CopilotWidget from "@/components/CopilotWidget";
@@ -39,8 +37,7 @@ export default function Home() {
   const [copilotLoading, setCopilotLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [routeResult, setRouteResult] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"queue" | "active" | "map" | "copilot" | "dispatch">("queue");
-  const [routeStart, setRouteStart] = useState<{ lat: number; lon: number } | null>(null);
+  const [activeTab, setActiveTab] = useState<"queue" | "active" | "map" | "dispatch">("queue");  const [routeStart, setRouteStart] = useState<{ lat: number; lon: number } | null>(null);
   const [routeGeometry, setRouteGeometry] = useState<[number, number][]>([]);
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -62,6 +59,17 @@ export default function Home() {
 
       if (!session) {
         router.push("/login");
+        return;
+      }
+      const { data: staffRow } = await supabase
+        .from("staff_profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+
+      if (!staffRow || staffRow.role === "field_officer") {
+        await supabase.auth.signOut();
+        router.push("/login?error=field-worker");
         return;
       }
 
@@ -270,9 +278,9 @@ const fetchRoadRoute = async (start: { lat: number; lon: number }, stops: any[])
       );
       setRouteGeometry(geoPoints);
     }
-  } catch (e) {
-    setRouteGeometry([]);
-  }
+} catch {
+  setRouteGeometry([]);
+}
 };
 
 const toggleSelect = (id: string) => {

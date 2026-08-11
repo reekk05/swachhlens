@@ -12,14 +12,14 @@ import {
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
-export default function AuthScreen() {
+export default function AuthScreen({ intendedRole, onBack }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-
-const handleAuth = async () => {
+  const isWorker = intendedRole === "worker";
+  const handleAuth = async () => {
   if (!email || !password) {
     Alert.alert("Please enter email and password.");
     return;
@@ -57,12 +57,15 @@ const handleAuth = async () => {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
     <View style={styles.container}>
-      <Text style={styles.title}>SwachhLens</Text>
-      <Text style={styles.subtitle}>
-        {isSignUp ? "Create an account" : "Log in to report waste"}
+      <TouchableOpacity onPress={onBack} style={{ marginBottom: 20 }}>
+        <Text style={{ color: colors.mist, fontFamily: fonts.body, fontSize: 14 }}>← Back</Text>
+      </TouchableOpacity>
+        <Text style={styles.title}>SwachhLens</Text>
+        <Text style={styles.subtitle}>
+        {isWorker ? "Field Worker Login" : isSignUp ? "Create an account" : "Log in to report waste"}
       </Text>
 
-      {isSignUp && (
+      {isSignUp && !isWorker &&(
         <TextInput
           style={styles.input}
           placeholder="Choose a username"
@@ -98,12 +101,18 @@ const handleAuth = async () => {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
-        <Text style={styles.switchText}>
-          {isSignUp ? "Already have an account? Log in" : "New here? Sign up"}
-        </Text>
-      </TouchableOpacity>
-    </View>
+{!isWorker && (
+  <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
+    <Text style={styles.switchText}>
+      {isSignUp ? "Already have an account? Log in" : "New here? Sign up"}
+    </Text>
+  </TouchableOpacity>
+)}
+{isWorker && (
+  <Text style={{ color: colors.mist, fontFamily: fonts.body, fontSize: 12, textAlign: "center", marginTop: 20 }}>
+    Worker accounts are created by your municipal office.
+  </Text>
+)}    </View>
     </TouchableWithoutFeedback>
   );
 
