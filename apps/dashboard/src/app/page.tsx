@@ -41,6 +41,12 @@ export default function Home() {
   const [routeGeometry, setRouteGeometry] = useState<[number, number][]>([]);
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [workers, setWorkers] = useState<{ id: string; full_name: string; has_location: boolean }[]>([]);
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string>("");
+  const [showAddWorker, setShowAddWorker] = useState(false);
+  const [newWorkerName, setNewWorkerName] = useState("");
+  const [newWorkerEmail, setNewWorkerEmail] = useState("");
+  const [newWorkerPassword, setNewWorkerPassword] = useState("");
 
   const showToast = (type: ToastData["type"], title: string, message?: string) => {
     const id = Date.now();
@@ -52,6 +58,77 @@ export default function Home() {
   };
   const router = useRouter();
   const supabase = createClient();
+  const createWorker = async () => {
+    if (!newWorkerName.trim() || !newWorkerEmail.trim() || !newWorkerPassword.trim()) {
+      showToast("error", "Please fill in all fields");
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+
+    const response = await fetch("http://localhost:8000/staff/workers/create", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        full_name: newWorkerName,
+        email: newWorkerEmail,
+        password: newWorkerPassword,
+      }),
+    });
+
+    if (response.ok) {
+      showToast("success", "Worker account created", `${newWorkerName} can now log in on mobile`);
+      setNewWorkerName("");
+      setNewWorkerEmail("");
+      setNewWorkerPassword("");
+      setShowAddWorker(false);
+      fetchWorkers();
+    } else {
+      const data = await response.json();
+      showToast("error", "Failed to create worker", data.detail);
+    }
+  };
+
+  const fetchWorkers = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+
+  const response = await fetch("http://localhost:8000/staff/workers", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (response.ok) {
+    const data = await response.json();
+    setWorkers(data);
+  }
+};
+
+const suggestWorker = async () => {
+  if (selectedIds.length === 0) return;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+
+  const response = await fetch("http://localhost:8000/staff/suggest-worker", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(selectedIds),
+  });
+
+  if (response.ok) {
+    const data = await response.json();
+    if (data.worker_id) {
+      setSelectedWorkerId(data.worker_id);
+      showToast("info", `Suggested: ${data.full_name}`, `${Math.round(data.distance_m / 1000)}km away — nearest available worker`);
+    }
+  }
+};
 
   useEffect(() => {
     async function init() {
@@ -81,11 +158,18 @@ export default function Home() {
       if (!error && data) {
         setComplaints(data);
       }
+      fetchWorkers();
       setLoading(false);
     }
 
     init();
   }, []);
+
+  useEffect(() => {
+  if (activeTab === "dispatch" && selectedIds.length > 0 && !selectedWorkerId) {
+    suggestWorker();
+  }
+}, [activeTab]);
   
   const handleResolve = async (complaintId: string, file: File | undefined) => {
   if (!file) return;
@@ -232,6 +316,12 @@ if (stops.length > 0) {
 };
 
 const confirmDispatch = async () => {
+
+  if (!selectedWorkerId) {
+  showToast("error", "Please select a field worker first");
+  return;
+}
+
   const { data: { session } } = await supabase.auth.getSession();
   const accessToken = session?.access_token;
 
@@ -241,7 +331,7 @@ const confirmDispatch = async () => {
       "Content-Type": "application/json",
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ complaint_ids: selectedIds }),
+    body: JSON.stringify({ complaint_ids: selectedIds, worker_id: selectedWorkerId }),
   });
 
   if (response.ok) {
@@ -335,6 +425,66 @@ const activeComplaints = complaints.filter((c) => c.status === "dispatched" || c
     <h2 className="text-lg font-body font-bold">Dispatch Planner</h2>
   </div>
   <p className="text-sm text-gray-400 mb-3">{selectedIds.length} complaint(s) selected</p>
+  
+<select
+  value={selectedWorkerId}
+  onChange={(e) => setSelectedWorkerId(e.target.value)}
+  className="w-full bg-ink text-paper rounded-lg p-3 mb-3 border border-border focus:border-mint outline-none"
+>
+  <option value="">Select a field worker...</option>
+  {workers.map((w) => (
+    <option key={w.id} value={w.id}>
+      {w.full_name} {w.has_location ? "📍" : "(no location yet)"}
+    </option>
+  ))}
+</select>
+{!showAddWorker ? (
+  <button
+    onClick={() => setShowAddWorker(true)}
+    className="text-mint text-sm mb-4 hover:opacity-80"
+  >
+    + Add a new field worker
+  </button>
+) : (
+  <div className="bg-ink border border-border rounded-lg p-4 mb-4 space-y-2">
+    <input
+      type="text"
+      placeholder="Full name"
+      value={newWorkerName}
+      onChange={(e) => setNewWorkerName(e.target.value)}
+      className="w-full bg-slate text-paper rounded-lg p-2.5 border border-border focus:border-mint outline-none text-sm"
+    />
+    <input
+      type="email"
+      placeholder="Email"
+      value={newWorkerEmail}
+      onChange={(e) => setNewWorkerEmail(e.target.value)}
+      className="w-full bg-slate text-paper rounded-lg p-2.5 border border-border focus:border-mint outline-none text-sm"
+    />
+    <input
+      type="password"
+      placeholder="Temporary password"
+      value={newWorkerPassword}
+      onChange={(e) => setNewWorkerPassword(e.target.value)}
+      className="w-full bg-slate text-paper rounded-lg p-2.5 border border-border focus:border-mint outline-none text-sm"
+    />
+    <div className="flex gap-2">
+      <button
+        onClick={createWorker}
+        className="flex-1 bg-mint text-ink rounded-lg py-2 text-sm font-medium hover:opacity-90"
+      >
+        Create
+      </button>
+      <button
+        onClick={() => setShowAddWorker(false)}
+        className="flex-1 text-mist border border-border rounded-lg py-2 text-sm hover:text-paper"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+)}
+
   <button
     onClick={getRoute}
     disabled={selectedIds.length === 0}

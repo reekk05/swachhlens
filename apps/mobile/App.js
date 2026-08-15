@@ -13,7 +13,10 @@ import ProfileTab from "./components/ProfileTab";
 import { useRef } from "react";
 import { Animated } from "react-native";
 import RoleSelectScreen from "./screens/RoleSelectScreen";
+import WorkerApp from "./components/WorkerApp";
+import { LogBox } from "react-native";
 
+LogBox.ignoreLogs(["Text strings must be rendered within a <Text> component"]);
 import {
   StyleSheet,
   Text,

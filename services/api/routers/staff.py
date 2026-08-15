@@ -233,3 +233,144 @@ def confirm_completion(
     db.commit()
 
     return {"status": new_status}
+
+
+@router.post("/suggest-worker")
+def suggest_worker(
+    complaint_ids: list[str] = Body(...),
+    db: Session = Depends(get_db),
+    staff_id: str = Depends(get_current_user_id),
+):
+    if not staff_id:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    staff_check = db.execute(
+        text("SELECT id FROM staff_profiles WHERE id = :id"),
+        {"id": staff_id},
+    ).fetchone()
+    if not staff_check:
+        raise HTTPException(status_code=403, detail="Staff access required")
+
+    placeholders = ", ".join([f":id{i}" for i in range(len(complaint_ids))])
+    params = {f"id{i}": cid for i, cid in enumerate(complaint_ids)}
+
+    center = db.execute(
+        text(f"""
+            SELECT AVG(ST_Y(location::geometry)) as lat, AVG(ST_X(location::geometry)) as lon
+            FROM complaints
+            WHERE id IN ({placeholders})
+        """),
+        params,
+    ).fetchone()
+
+    if not center or center.lat is None:
+        return {"worker_id": None}
+
+    nearest = db.execute(
+        text("""
+            SELECT sp.id, sp.full_name,
+                   ST_Distance(
+                       ST_SetSRID(ST_MakePoint(wl.longitude, wl.latitude), 4326)::geography,
+                       ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography
+                   ) as distance_m
+            FROM staff_profiles sp
+            JOIN worker_locations wl ON wl.worker_id = sp.id
+            WHERE sp.role = 'field_officer'
+            ORDER BY distance_m ASC
+            LIMIT 1
+        """),
+        {"lat": center.lat, "lon": center.lon},
+    ).fetchone()
+
+    if not nearest:
+        return {"worker_id": None}
+
+    return {
+        "worker_id": str(nearest.id),
+        "full_name": nearest.full_name,
+        "distance_m": round(nearest.distance_m),
+    }
+
+
+class CreateWorkerRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str
+
+
+@router.post("/workers/create")
+def create_worker(
+    payload: CreateWorkerRequest,
+    db: Session = Depends(get_db),
+    staff_id: str = Depends(get_current_user_id),
+):
+    if not staff_id:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    staff_check = db.execute(
+        text("SELECT id FROM staff_profiles WHERE id = :id"),
+        {"id": staff_id},
+    ).fetchone()
+    if not staff_check:
+        raise HTTPException(status_code=403, detail="Staff access required")
+
+    result = supabase.auth.admin.create_user(
+        {
+            "email": payload.email,
+            "password": payload.password,
+            "email_confirm": True,
+        }
+    )
+
+    user_id = result.user.id
+
+    try:
+        db.execute(
+            text("""
+                INSERT INTO staff_profiles (id, full_name, role)
+                VALUES (:id, :full_name, 'field_officer')
+            """),
+            {"id": user_id, "full_name": payload.full_name},
+        )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        supabase.auth.admin.delete_user(user_id)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create worker: {str(e)}"
+        )
+
+    return {"status": "created", "worker_id": user_id}
+
+
+@router.get("/workers")
+def list_workers(
+    db: Session = Depends(get_db),
+    staff_id: str = Depends(get_current_user_id),
+):
+    if not staff_id:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    rows = db.execute(text("""
+            SELECT sp.id, sp.full_name, wl.latitude, wl.longitude, wl.updated_at,
+                   EXISTS (
+                       SELECT 1 FROM complaints c
+                       WHERE c.assigned_worker_id = sp.id
+                       AND c.status IN ('dispatched', 'in_progress')
+                   ) as is_active
+            FROM staff_profiles sp
+            LEFT JOIN worker_locations wl ON wl.worker_id = sp.id
+            WHERE sp.role = 'field_officer'
+            ORDER BY sp.full_name ASC
+        """)).fetchall()
+
+    return [
+        {
+            "id": str(row.id),
+            "full_name": row.full_name,
+            "has_location": row.latitude is not None,
+            "last_seen": str(row.updated_at) if row.updated_at else None,
+            "is_active": row.is_active,
+        }
+        for row in rows
+    ]

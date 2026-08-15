@@ -4,6 +4,8 @@ import * as Location from "expo-location";
 import { supabase } from "../lib/supabase";
 import { API_URL } from "../config";
 import { colors, fonts } from "../theme";
+import * as ImagePicker from "expo-image-picker";
+import { Alert } from "react-native";
 
 export default function WorkerApp({ session }) {
   const [locationReady, setLocationReady] = useState(false);
@@ -54,6 +56,42 @@ export default function WorkerApp({ session }) {
     }
     setLoadingStops(false);
   };
+
+const completeStop = async (stopId) => {
+  const permission = await ImagePicker.requestCameraPermissionsAsync();
+  if (!permission.granted) return;
+
+  const result = await ImagePicker.launchCameraAsync({ quality: 0.5, base64: true });
+  if (result.canceled) return;
+
+  const photo = result.assets[0];
+  const { data: { session: currentSession } } = await supabase.auth.getSession();
+  const accessToken = currentSession?.access_token;
+
+  const formData = new FormData();
+  formData.append("photo", {
+    uri: photo.uri,
+    name: "after.jpg",
+    type: "image/jpeg",
+  });
+
+  const response = await fetch(`${API_URL}/worker/complaints/${stopId}/complete`, {
+    method: "POST",
+    body: formData,
+    headers: {
+      "Content-Type": "multipart/form-data",
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (response.ok) {
+    Alert.alert("Submitted", "Waiting for office confirmation.");
+    fetchStops();
+  } else {
+    Alert.alert("Failed", "Please try again.");
+  }
+};
+
   useEffect(() => {
     if (locationReady) {
       fetchStops();
@@ -68,7 +106,6 @@ export default function WorkerApp({ session }) {
           <Text style={{ color: colors.mist, fontFamily: fonts.body, fontSize: 13 }}>Log out</Text>
         </TouchableOpacity>
       </View>
-
       <Text style={{ color: colors.mist, fontFamily: fonts.body, fontSize: 13 }}>
         {locationReady ? "📍 Location active" : "Getting your location..."}
       </Text>
@@ -124,6 +161,13 @@ export default function WorkerApp({ session }) {
             {stop.distance_from_previous_m}m from previous
           </Text>
         )}
+
+        <TouchableOpacity
+          onPress={() => completeStop(stop.id)}
+          style={{ backgroundColor: colors.mint, borderRadius: 8, paddingVertical: 10, alignItems: "center", marginTop: 12 }}
+        >
+          <Text style={{ color: colors.ink, fontFamily: fonts.bodyMedium, fontSize: 13 }}>Mark Complete — Upload Photo</Text>
+        </TouchableOpacity>
       </View>
     ))}
   </>
