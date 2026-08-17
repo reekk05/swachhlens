@@ -9,6 +9,8 @@ import { Truck } from "lucide-react";
 import { ToastContainer, ToastData } from "@/components/Toast";
 import RejectModal from "@/components/RejectModal";
 import CopilotWidget from "@/components/CopilotWidget";
+import WorkersTab from "@/components/WorkersTab";
+import AwaitingConfirmationCard from "@/components/AwaitingConfirmationCard";
 
 const ComplaintMap = dynamic(() => import("@/components/ComplaintMap"), { ssr: false });
 const RouteMap = dynamic(() => import("@/components/RouteMap"), { ssr: false });
@@ -27,8 +29,8 @@ type Complaint = {
   rejection_reason?: string | null;
   reporter_name?: string | null;
   reporter_avatar?: string | null;
+  ai_verification_note?: string | null;
 };
-
 export default function Home() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,11 +39,12 @@ export default function Home() {
   const [copilotLoading, setCopilotLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [routeResult, setRouteResult] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"queue" | "active" | "map" | "dispatch">("queue");  const [routeStart, setRouteStart] = useState<{ lat: number; lon: number } | null>(null);
+  const [activeTab, setActiveTab] = useState<"queue" | "active" | "map" | "dispatch"| "workers">("queue");  const [routeStart, setRouteStart] = useState<{ lat: number; lon: number } | null>(null);
   const [routeGeometry, setRouteGeometry] = useState<[number, number][]>([]);
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [workers, setWorkers] = useState<{ id: string; full_name: string; has_location: boolean }[]>([]);
+
+  const [workers, setWorkers] = useState<{ id: string; full_name: string; has_location: boolean; last_seen: string | null; is_active: boolean }[]>([]);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>("");
   const [showAddWorker, setShowAddWorker] = useState(false);
   const [newWorkerName, setNewWorkerName] = useState("");
@@ -130,6 +133,17 @@ const suggestWorker = async () => {
   }
 };
 
+const refreshComplaints = async () => {
+  const { data, error } = await supabase
+    .from("complaints_full")
+    .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar, ai_verification_note")
+    .order("severity_score", { ascending: false, nullsFirst: false });
+
+  if (!error && data) {
+    setComplaints(data);
+  }
+};
+
   useEffect(() => {
     async function init() {
       const { data: { session } } = await supabase.auth.getSession();
@@ -152,7 +166,7 @@ const suggestWorker = async () => {
 
       const { data, error } = await supabase
         .from("complaints_full")
-        .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar")
+        .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar, ai_verification_note")
         .order("severity_score", { ascending: false, nullsFirst: false });
 
       if (!error && data) {
@@ -171,6 +185,14 @@ const suggestWorker = async () => {
   }
 }, [activeTab]);
   
+useEffect(() => {
+  const interval = setInterval(() => {
+    refreshComplaints();
+  }, 15000);
+
+  return () => clearInterval(interval);
+}, []);
+
   const handleResolve = async (complaintId: string, file: File | undefined) => {
   if (!file) return;
 
@@ -195,13 +217,7 @@ const suggestWorker = async () => {
   } else {
     showToast("info", "Not yet resolved — needs more work", result.verification.reasoning);
   }
-  const { data, error } = await supabase
-    .from("complaints_full")
-    .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar")
-    .order("severity_score", { ascending: false, nullsFirst: false });
-    
-  if (error) console.error("Refetch failed:", error);
-  if (data) setComplaints(data);
+await refreshComplaints();
 };
 const handleReject = (complaintId: string) => {
   setRejectingId(complaintId);
@@ -232,12 +248,7 @@ const confirmReject = async (reason: string) => {
 
   setRejectingId(null);
 
-  const { data } = await supabase
-    .from("complaints_full")
-    .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar")
-    .order("severity_score", { ascending: false, nullsFirst: false });
-
-  if (data) setComplaints(data);
+await refreshComplaints();
 };
 
 const askCopilot = async () => {
@@ -343,12 +354,7 @@ const confirmDispatch = async () => {
     showToast("error", "Dispatch failed");
   }
 
-  const { data } = await supabase
-    .from("complaints_full")
-    .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar")
-    .order("severity_score", { ascending: false, nullsFirst: false });
-
-  if (data) setComplaints(data);
+await refreshComplaints();
 };
 
 const fetchRoadRoute = async (start: { lat: number; lon: number }, stops: any[]) => {
@@ -379,12 +385,38 @@ const toggleSelect = (id: string) => {
   );
 };
 
+const handleConfirmCompletion = async (complaintId: string, approve: boolean) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+
+  const response = await fetch(`http://localhost:8000/staff/complaints/${complaintId}/confirm`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ approve }),
+  });
+
+  if (response.ok) {
+    showToast(
+      approve ? "success" : "info",
+      approve ? "Complaint resolved" : "Sent back to worker",
+      approve ? "Citizen's stats have been updated" : "Worker will see this again in their stops"
+    );
+  } else {
+    showToast("error", "Something went wrong");
+  }
+
+await refreshComplaints();
+};
+
   if (loading) {
     return <div className="p-10 text-white bg-[#0d1b0f] min-h-screen">Loading complaints...</div>;
   }
 const queueComplaints = complaints.filter((c) => c.status === "pending" || c.status === "verified");
 const activeComplaints = complaints.filter((c) => c.status === "dispatched" || c.status === "in_progress");
-
+const awaitingComplaints = complaints.filter((c) => c.status === "awaiting_confirmation");
   return (
     <div className="min-h-screen bg-[#0d1b0f] text-white p-10">
     <div className="flex justify-between items-center mb-6">
@@ -438,52 +470,6 @@ const activeComplaints = complaints.filter((c) => c.status === "dispatched" || c
     </option>
   ))}
 </select>
-{!showAddWorker ? (
-  <button
-    onClick={() => setShowAddWorker(true)}
-    className="text-mint text-sm mb-4 hover:opacity-80"
-  >
-    + Add a new field worker
-  </button>
-) : (
-  <div className="bg-ink border border-border rounded-lg p-4 mb-4 space-y-2">
-    <input
-      type="text"
-      placeholder="Full name"
-      value={newWorkerName}
-      onChange={(e) => setNewWorkerName(e.target.value)}
-      className="w-full bg-slate text-paper rounded-lg p-2.5 border border-border focus:border-mint outline-none text-sm"
-    />
-    <input
-      type="email"
-      placeholder="Email"
-      value={newWorkerEmail}
-      onChange={(e) => setNewWorkerEmail(e.target.value)}
-      className="w-full bg-slate text-paper rounded-lg p-2.5 border border-border focus:border-mint outline-none text-sm"
-    />
-    <input
-      type="password"
-      placeholder="Temporary password"
-      value={newWorkerPassword}
-      onChange={(e) => setNewWorkerPassword(e.target.value)}
-      className="w-full bg-slate text-paper rounded-lg p-2.5 border border-border focus:border-mint outline-none text-sm"
-    />
-    <div className="flex gap-2">
-      <button
-        onClick={createWorker}
-        className="flex-1 bg-mint text-ink rounded-lg py-2 text-sm font-medium hover:opacity-90"
-      >
-        Create
-      </button>
-      <button
-        onClick={() => setShowAddWorker(false)}
-        className="flex-1 text-mist border border-border rounded-lg py-2 text-sm hover:text-paper"
-      >
-        Cancel
-      </button>
-    </div>
-  </div>
-)}
 
   <button
     onClick={getRoute}
@@ -533,18 +519,48 @@ const activeComplaints = complaints.filter((c) => c.status === "dispatched" || c
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
         />
-      )}
-{activeTab === "active" && (
-  <QueueTab
-    complaints={activeComplaints}
-    onResolve={handleResolve}
-    onReject={handleReject}
-    selectedIds={selectedIds}
-    onToggleSelect={toggleSelect}
-    showSelection={false}
+)}
+
+{activeTab === "workers" && (
+  <WorkersTab
+    workers={workers}
+    showAddWorker={showAddWorker}
+    onToggleAddWorker={setShowAddWorker}
+    newWorkerName={newWorkerName}
+    onNameChange={setNewWorkerName}
+    newWorkerEmail={newWorkerEmail}
+    onEmailChange={setNewWorkerEmail}
+    newWorkerPassword={newWorkerPassword}
+    onPasswordChange={setNewWorkerPassword}
+    onCreateWorker={createWorker}
   />
 )}
-{selectedIds.length > 0 && activeTab !== "dispatch" && (
+
+{activeTab === "active" && (
+  <div>
+    {awaitingComplaints.length > 0 && (
+      <div className="mb-6">
+        <h3 className="text-sm font-semibold text-mist uppercase tracking-wide mb-3">
+          Needs Your Confirmation ({awaitingComplaints.length})
+        </h3>
+        <div className="space-y-4">
+          {awaitingComplaints.map((c) => (
+            <AwaitingConfirmationCard key={c.id} complaint={c} onConfirm={handleConfirmCompletion} />
+          ))}
+        </div>
+      </div>
+    )}
+
+    <QueueTab
+      complaints={activeComplaints}
+      onResolve={handleResolve}
+      onReject={handleReject}
+      selectedIds={selectedIds}
+      onToggleSelect={toggleSelect}
+      showSelection={false}
+    />
+  </div>
+)}{selectedIds.length > 0 && activeTab !== "dispatch" && (
   <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate border border-border rounded-full shadow-2xl shadow-black/40 px-6 py-3 flex items-center gap-4">
     <span className="text-sm text-paper">{selectedIds.length} selected</span>
     <button

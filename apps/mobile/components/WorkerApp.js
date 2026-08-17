@@ -5,13 +5,20 @@ import { supabase } from "../lib/supabase";
 import { API_URL } from "../config";
 import { colors, fonts } from "../theme";
 import * as ImagePicker from "expo-image-picker";
-import { Alert } from "react-native";
+import { Alert, RefreshControl, ScrollView } from "react-native";
 
 export default function WorkerApp({ session }) {
   const [locationReady, setLocationReady] = useState(false);
   const [stops, setStops] = useState([]);
   const [viewMode, setViewMode] = useState("optimized");
-  const [loadingStops, setLoadingStops] = useState(true);  
+  const [loadingStops, setLoadingStops] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+const onRefresh = async () => {
+  setRefreshing(true);
+  await fetchStops();
+  setRefreshing(false);
+};
   
   useEffect(() => {
     const updateLocation = async () => {
@@ -98,9 +105,21 @@ const completeStop = async (stopId) => {
     }
   }, [locationReady]);
 
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.ink, paddingTop: 70, paddingHorizontal: 20 }}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+return (
+  <ScrollView
+    style={{ flex: 1, backgroundColor: colors.ink, paddingTop: 70, paddingHorizontal: 20 }}
+    refreshControl={
+  <RefreshControl
+    refreshing={refreshing}
+    onRefresh={onRefresh}
+    tintColor={colors.mint}
+    title="Refreshing..."
+    titleColor={colors.mist}
+    colors={[colors.mint]}
+  />
+}
+  >
+    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <Text style={{ color: colors.paper, fontFamily: fonts.display, fontSize: 28 }}>Field Worker</Text>
         <TouchableOpacity onPress={() => supabase.auth.signOut()}>
           <Text style={{ color: colors.mist, fontFamily: fonts.body, fontSize: 13 }}>Log out</Text>
@@ -144,34 +163,71 @@ const completeStop = async (stopId) => {
       </TouchableOpacity>
     </View>
 
-    {(viewMode === "optimized" ? stops.stops : stops.manual_order || []).length === 0 && (
-      <Text style={{ color: colors.mist, fontFamily: fonts.body }}>No stops assigned right now.</Text>
-    )}
+{(() => {
+  if (viewMode === "manual") {
+    const allStops = stops.manual_order || [];
+    if (allStops.length === 0) {
+      return <Text style={{ color: colors.mist, fontFamily: fonts.body }}>No stops assigned right now. Great work!</Text>;
+    }
+    return (
+      <View>
+        {allStops.map((stop) => (
+          <View key={stop.id} style={{ backgroundColor: colors.slate, borderRadius: 12, padding: 16, marginBottom: 10 }}>
+            <Text style={{ color: colors.paper, fontFamily: fonts.bodyMedium, fontSize: 15, textTransform: "capitalize" }}>
+              {stop.category?.replace(/_/g, " ")}
+            </Text>
+            <Text style={{ color: colors.mist, fontFamily: fonts.body, fontSize: 13, marginTop: 4 }}>
+              {stop.address || "Location pending"}
+            </Text>
+            <TouchableOpacity
+              onPress={() => completeStop(stop.id)}
+              style={{ backgroundColor: colors.mint, borderRadius: 8, paddingVertical: 10, alignItems: "center", marginTop: 12 }}
+            >
+              <Text style={{ color: colors.ink, fontFamily: fonts.bodyMedium, fontSize: 13 }}>Mark Complete — Upload Photo</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+    );
+  }
 
-    {(viewMode === "optimized" ? stops.stops : stops.manual_order || []).map((stop, i) => (
-      <View key={stop.id} style={{ backgroundColor: colors.slate, borderRadius: 12, padding: 16, marginBottom: 10 }}>
+  const activeList = stops.stops || [];
+  if (activeList.length === 0) {
+    return <Text style={{ color: colors.mist, fontFamily: fonts.body }}>No stops assigned right now. Great work!</Text>;
+  }
+
+  const currentStop = activeList[0];
+  const remaining = activeList.length - 1;
+
+  return (
+    <View>
+      <Text style={{ color: colors.mist, fontFamily: fonts.body, fontSize: 13, marginBottom: 12 }}>
+        {remaining > 0 ? `${remaining} more after this` : "Last stop"}
+      </Text>
+      <View style={{ backgroundColor: colors.slate, borderRadius: 12, padding: 16 }}>
         <Text style={{ color: colors.paper, fontFamily: fonts.bodyMedium, fontSize: 15, textTransform: "capitalize" }}>
-          {viewMode === "optimized" ? `${i + 1}. ` : ""}{stop.category?.replace(/_/g, " ")}
+          {currentStop.category?.replace(/_/g, " ")}
         </Text>
         <Text style={{ color: colors.mist, fontFamily: fonts.body, fontSize: 13, marginTop: 4 }}>
-          {stop.address || "Location pending"}
+          {currentStop.address || "Location pending"}
         </Text>
-        {stop.distance_from_previous_m !== undefined && (
+        {currentStop.distance_from_previous_m !== undefined && (
           <Text style={{ color: colors.mint, fontFamily: fonts.body, fontSize: 12, marginTop: 4 }}>
-            {stop.distance_from_previous_m}m from previous
+            {currentStop.distance_from_previous_m}m away
           </Text>
         )}
-
         <TouchableOpacity
-          onPress={() => completeStop(stop.id)}
+          onPress={() => completeStop(currentStop.id)}
           style={{ backgroundColor: colors.mint, borderRadius: 8, paddingVertical: 10, alignItems: "center", marginTop: 12 }}
         >
           <Text style={{ color: colors.ink, fontFamily: fonts.bodyMedium, fontSize: 13 }}>Mark Complete — Upload Photo</Text>
         </TouchableOpacity>
       </View>
-    ))}
-  </>
-)}
     </View>
+  );
+})()}
+</>
+)}
+    </ScrollView>
   );
 }

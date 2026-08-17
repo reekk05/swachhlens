@@ -132,10 +132,15 @@ async def complete_stop(
         text("""
             UPDATE complaints
             SET status = 'awaiting_confirmation',
-                resolved_photo_url = :photo_url
+                resolved_photo_url = :photo_url,
+                ai_verification_note = :note
             WHERE id = :id
         """),
-        {"photo_url": photo_path, "id": complaint_id},
+        {
+            "photo_url": photo_path,
+            "id": complaint_id,
+            "note": verification.get("reasoning"),
+        },
     )
     db.commit()
 
