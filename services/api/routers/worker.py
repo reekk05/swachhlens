@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db
 from core.auth import get_current_user_id
+from core.supabase_client import supabase
 
 router = APIRouter(prefix="/worker", tags=["worker"])
 
@@ -145,3 +146,32 @@ async def complete_stop(
     db.commit()
 
     return {"status": "awaiting_confirmation", "verification": verification}
+
+
+class ChangePasswordRequest(BaseModel):
+    new_password: str
+
+
+@router.post("/change-password")
+def change_password(
+    payload: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    worker_id: str = Depends(get_current_user_id),
+):
+    if not worker_id:
+        raise HTTPException(status_code=401, detail="Login required")
+
+    if len(payload.new_password) < 6:
+        raise HTTPException(
+            status_code=400, detail="Password must be at least 6 characters"
+        )
+
+    supabase.auth.admin.update_user_by_id(worker_id, {"password": payload.new_password})
+
+    db.execute(
+        text("UPDATE staff_profiles SET must_change_password = false WHERE id = :id"),
+        {"id": worker_id},
+    )
+    db.commit()
+
+    return {"status": "updated"}

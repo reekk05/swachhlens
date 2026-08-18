@@ -15,6 +15,7 @@ import { Animated } from "react-native";
 import RoleSelectScreen from "./screens/RoleSelectScreen";
 import WorkerApp from "./components/WorkerApp";
 import { LogBox } from "react-native";
+import SetPasswordScreen from "./screens/SetPasswordScreen";
 
 LogBox.ignoreLogs(["Text strings must be rendered within a <Text> component"]);
 import {
@@ -49,6 +50,8 @@ export default function App() {
   const [userRole, setUserRole] = useState(null);
   const [roleChecked, setRoleChecked] = useState(false);
   const [entryRole, setEntryRole] = useState(null);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -67,7 +70,7 @@ export default function App() {
     }
   }, [session]);
 
-  useEffect(() => {
+useEffect(() => {
   if (!session) {
     setRoleChecked(false);
     return;
@@ -75,15 +78,16 @@ export default function App() {
 
   supabase
     .from("staff_profiles")
-    .select("role")
+    .select("role, must_change_password")
     .eq("id", session.user.id)
     .single()
     .then(({ data }) => {
       setUserRole(data ? data.role : "citizen");
+      setMustChangePassword(data ? data.must_change_password : false);
       setRoleChecked(true);
     });
 }, [session]);
-  
+
   useEffect(() => {
     if (session && activeTab === "activity") {
       fetchMyReports().then(setMyReports);
@@ -241,9 +245,36 @@ if (!session) {
 if (!roleChecked) {
    return <View style={{ flex: 1, backgroundColor: colors.ink }} />;
   }
+
+if (entryRole === "worker" && userRole !== "field_officer") {
+  supabase.auth.signOut();
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.ink, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}>
+      <Text style={{ color: colors.signal, fontFamily: fonts.bodyMedium, fontSize: 16, textAlign: "center" }}>
+        These credentials aren't registered as a field worker account.
+      </Text>
+    </View>
+  );
+}
+
+if (entryRole === "citizen" && userRole === "field_officer") {
+  supabase.auth.signOut();
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.ink, justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}>
+      <Text style={{ color: colors.signal, fontFamily: fonts.bodyMedium, fontSize: 16, textAlign: "center" }}>
+        This is a field worker account. Please select "Field Worker" on the previous screen.
+      </Text>
+    </View>
+  );
+}
+
+if (userRole === "field_officer" && mustChangePassword) {
+  return <SetPasswordScreen onDone={() => setMustChangePassword(false)} />;
+}
+
 if (userRole === "field_officer") {
-   return <WorkerApp session={session} />; 
-  }
+  return <WorkerApp session={session} />;
+}
   
 return (
   

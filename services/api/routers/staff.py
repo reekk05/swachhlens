@@ -327,8 +327,8 @@ def create_worker(
     try:
         db.execute(
             text("""
-                INSERT INTO staff_profiles (id, full_name, role)
-                VALUES (:id, :full_name, 'field_officer')
+                INSERT INTO staff_profiles (id, full_name, role, must_change_password)
+                VALUES (:id, :full_name, 'field_officer', true)
             """),
             {"id": user_id, "full_name": payload.full_name},
         )
