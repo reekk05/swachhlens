@@ -142,11 +142,14 @@ export default function QueueTab({
           >
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-lg font-semibold capitalize">
-                  <span className="text-mist font-normal mr-2">#{index + 1} </span>
-                  {c.category ? `${categoryIcons[c.category] || ""} ${c.category.replace(/_/g, " ")}` : "Pending classification"}
-                </p>
-                <p className="text-sm text-mist">
+<p className="text-lg font-semibold capitalize">
+  <span className="text-mist font-normal mr-2">#{index + 1} ·</span>
+  {c.category
+    ? `${categoryIcons[c.category] || ""} ${c.category.replace(/_/g, " ")}`
+    : c.recommended_action?.includes("Manual inspection required")
+    ? "⚠️ Needs Manual Review"
+    : "Pending classification"}
+</p>                <p className="text-sm text-mist">
                   {c.address_text || "Location pending"}
                 </p>
                 <p className="text-xs text-mist mt-1">

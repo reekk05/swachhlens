@@ -57,29 +57,38 @@ def apply_severity_and_recommendation(
 def process_complaint(complaint_id: str, photo_bytes: bytes, content_type: str):
     db = SessionLocal()
     try:
-        try:
-            response = httpx.post(
-                f"{AI_ENGINE_URL}/classify/",
-                files={"photo": ("photo.jpg", photo_bytes, content_type)},
-                timeout=30.0,
-            )
-            response.raise_for_status()
-            result = response.json()
-        except Exception as e:
+        result = None
+        last_error = None
+
+        for attempt, timeout in enumerate([30.0, 45.0]):
+            try:
+                response = httpx.post(
+                    f"{AI_ENGINE_URL}/classify/",
+                    files={"photo": ("photo.jpg", photo_bytes, content_type)},
+                    timeout=timeout,
+                )
+                response.raise_for_status()
+                result = response.json()
+                break
+            except Exception as e:
+                last_error = e
+
+        if result is None:
             db.execute(
                 text("""
                     UPDATE complaints
-                    SET status = 'verified', recommended_action = :note
+                    SET status = 'verified',
+                        severity_score = 60,
+                        recommended_action = :note
                     WHERE id = :id
                 """),
                 {
                     "id": complaint_id,
-                    "note": f"AI classification unavailable ({str(e)}). Needs manual review.",
+                    "note": f"⚠️ AI classification failed after retry ({str(last_error)}). Manual inspection required before dispatch.",
                 },
             )
             db.commit()
             return
-
         classification_breakdown = {
             "confidence": result["confidence"],
             "reasoning": result["reasoning"],
