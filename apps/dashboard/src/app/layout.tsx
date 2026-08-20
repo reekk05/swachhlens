@@ -16,8 +16,10 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "SwachhLens — Municipal Dashboard",
   description: "AI-Powered Waste Response Decision Support System",
+  icons: {
+    icon: "/swachhlens-icon.svg",
+  },
 };
-
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html

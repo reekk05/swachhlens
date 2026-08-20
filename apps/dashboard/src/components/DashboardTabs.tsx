@@ -1,9 +1,9 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { ListChecks, Map, Truck, Activity, Users } from "lucide-react";
+import { ListChecks, Map, Truck, Activity, Users, Radar } from "lucide-react";
 
-type Tab = "queue" | "active" | "map" | "dispatch" | "workers";
+type Tab = "command" |"queue" | "active" | "map" | "dispatch" | "workers" ;
 
 export default function DashboardTabs({
   active,
@@ -13,12 +13,12 @@ export default function DashboardTabs({
   onChange: (tab: Tab) => void;
 }) {
   const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
+    {key: "command", label: "Command", icon: Radar },
     { key: "queue", label: "Queue", icon: ListChecks },
     { key: "active", label: "Active", icon: Activity },
     { key: "map", label: "Map", icon: Map },
     { key: "dispatch", label: "Dispatch", icon: Truck },
     { key: "workers", label: "Workers", icon: Users },
-
   ];
 
   const containerRef = useRef<HTMLDivElement>(null);

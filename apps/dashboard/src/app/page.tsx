@@ -11,6 +11,8 @@ import RejectModal from "@/components/RejectModal";
 import CopilotWidget from "@/components/CopilotWidget";
 import WorkersTab from "@/components/WorkersTab";
 import AwaitingConfirmationCard from "@/components/AwaitingConfirmationCard";
+import CommandCenterTab from "@/components/CommandCenterTab";
+import Image from "next/image";
 
 const ComplaintMap = dynamic(() => import("@/components/ComplaintMap"), { ssr: false });
 const RouteMap = dynamic(() => import("@/components/RouteMap"), { ssr: false });
@@ -30,7 +32,11 @@ type Complaint = {
   reporter_name?: string | null;
   reporter_avatar?: string | null;
   ai_verification_note?: string | null;
+  estimated_cleanup_minutes?: number | null;
+  workers_needed?: number | null;
+  report_count?: number | null;
 };
+
 export default function Home() {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,12 +45,26 @@ export default function Home() {
   const [copilotLoading, setCopilotLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [routeResult, setRouteResult] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"queue" | "active" | "map" | "dispatch"| "workers">("queue");  const [routeStart, setRouteStart] = useState<{ lat: number; lon: number } | null>(null);
+  const [activeTab, setActiveTab] = useState<"queue" | "active" | "map" | "command" | "dispatch"| "workers" >("queue");  const [routeStart, setRouteStart] = useState<{ lat: number; lon: number } | null>(null);
   const [routeGeometry, setRouteGeometry] = useState<[number, number][]>([]);
   const [toasts, setToasts] = useState<ToastData[]>([]);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [workers, setWorkers] = useState<{
+    id: string;
+    full_name: string;
+    has_location: boolean;
+    last_seen: string | null;
+    is_active: boolean;
+  }[]>([]);
 
-  const [workers, setWorkers] = useState<{ id: string; full_name: string; has_location: boolean; last_seen: string | null; is_active: boolean }[]>([]);
+  const [workerPositions, setWorkerPositions] = useState<
+    {
+      worker_id: string;
+      latitude: number;
+      longitude: number;
+    }[]
+  >([]);
+
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>("");
   const [showAddWorker, setShowAddWorker] = useState(false);
   const [newWorkerName, setNewWorkerName] = useState("");
@@ -109,6 +129,16 @@ export default function Home() {
   }
 };
 
+const fetchWorkerPositions = async () => {
+  const { data, error } = await supabase
+    .from("worker_locations")
+    .select("worker_id, latitude, longitude");
+
+  if (!error && data) {
+    setWorkerPositions(data);
+  }
+};
+
 const suggestWorker = async () => {
   if (selectedIds.length === 0) return;
 
@@ -134,14 +164,44 @@ const suggestWorker = async () => {
 };
 
 const refreshComplaints = async () => {
-  const { data, error } = await supabase
+  const { data: complaintView, error: viewError } = await supabase
     .from("complaints_full")
-    .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar, ai_verification_note")
+    .select(
+      "id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar, ai_verification_note"
+    )
     .order("severity_score", { ascending: false, nullsFirst: false });
 
-  if (!error && data) {
-    setComplaints(data);
+  if (viewError || !complaintView) {
+    console.error("Failed to fetch complaints:", viewError);
+    return;
   }
+
+  const { data: operationalData, error: operationalError } = await supabase
+    .from("complaints")
+    .select(
+      "id, estimated_cleanup_minutes, workers_needed, report_count"
+    );
+
+  if (operationalError || !operationalData) {
+    console.error(
+      "Failed to fetch complaint operational data:",
+      operationalError
+    );
+
+    setComplaints(complaintView);
+    return;
+  }
+
+  const operationalById = new Map(
+    operationalData.map((row) => [row.id, row])
+  );
+
+  const merged = complaintView.map((complaint) => ({
+    ...complaint,
+    ...operationalById.get(complaint.id),
+  }));
+
+  setComplaints(merged);
 };
 
   useEffect(() => {
@@ -164,15 +224,9 @@ const refreshComplaints = async () => {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("complaints_full")
-        .select("id, status, category, volume, severity_score, recommended_action, address_text, reported_at, latitude, longitude, rejection_reason, reporter_name, reporter_avatar, ai_verification_note")
-        .order("severity_score", { ascending: false, nullsFirst: false });
-
-      if (!error && data) {
-        setComplaints(data);
-      }
+      await refreshComplaints();
       fetchWorkers();
+      fetchWorkerPositions();
       setLoading(false);
     }
 
@@ -188,6 +242,7 @@ const refreshComplaints = async () => {
 useEffect(() => {
   const interval = setInterval(() => {
     refreshComplaints();
+    fetchWorkerPositions();
   }, 15000);
 
   return () => clearInterval(interval);
@@ -420,8 +475,13 @@ const awaitingComplaints = complaints.filter((c) => c.status === "awaiting_confi
   return (
     <div className="min-h-screen bg-[#0d1b0f] text-white p-10">
     <div className="flex justify-between items-center mb-6">
-      <h1 className="text-3xl font-bold">SwachhLens — Complaint Queue</h1>
-      <button
+<Image
+  src="/swachhlens-logo.svg"
+  alt="SwachhLens"
+  width={240}
+  height={60}
+  className="h-12 w-auto"
+/>      <button
         onClick={async () => {
           await supabase.auth.signOut();
           router.push("/login");
@@ -439,19 +499,42 @@ const awaitingComplaints = complaints.filter((c) => c.status === "awaiting_confi
 {activeTab === "map" && complaints.length > 0 && (
   <div className="mb-8">
     <div className="flex gap-4 mb-4 text-xs text-mist">
-      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#e53935]" /> Critical (75+)</span>
-      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#fb8c00]" /> High (50-74)</span>
-      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#fdd835]" /> Medium (25-49)</span>
-      <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#43a047]" /> Low (0-24)</span>
+      <span className="flex items-center gap-1.5">
+        <span className="w-2.5 h-2.5 rounded-full bg-[#e53935]" />
+        Critical (75+)
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="w-2.5 h-2.5 rounded-full bg-[#fb8c00]" />
+        High (50-74)
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="w-2.5 h-2.5 rounded-full bg-[#fdd835]" />
+        Medium (25-49)
+      </span>
+      <span className="flex items-center gap-1.5">
+        <span className="w-2.5 h-2.5 rounded-full bg-[#43a047]" />
+        Low (0-24)
+      </span>
     </div>
-    <ComplaintMap complaints={complaints} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
+
+    <ComplaintMap
+      complaints={complaints}
+      selectedIds={selectedIds}
+      onToggleSelect={toggleSelect}
+    />
   </div>
 )}
 
+{activeTab === "command" && (
+  <CommandCenterTab
+    complaints={complaints}
+    workers={workers}
+    workerPositions={workerPositions}
+  />
+)}
 
-
-{activeTab==="dispatch" && (
-<div className="bg-slate rounded-xl p-6 border border-border mb-8">
+{activeTab === "dispatch" && (
+  <div className="bg-slate rounded-xl p-6 border border-border mb-8">
   <div className="flex items-center gap-2 mb-4">
     <Truck size={20} className="text-mint" />
     <h2 className="text-lg font-body font-bold">Dispatch Planner</h2>

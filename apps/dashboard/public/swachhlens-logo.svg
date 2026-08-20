@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" role="img" aria-labelledby="title desc">
+  <title id="title">SwachhLens logo</title>
+  <desc id="desc">SwachhLens logo with green civic cleanliness emblem and wordmark.</desc>
+  <defs>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00C853"/>
+      <stop offset="0.55" stop-color="#00E676"/>
+      <stop offset="1" stop-color="#00BFA5"/>
+    </linearGradient>
+    <linearGradient id="green2" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#00A844"/>
+      <stop offset="1" stop-color="#25F58A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- emblem -->
+  <g transform="translate(20,10) scale(.55)">
+    <path d="M142 190
+             C125 158 142 120 177 106
+             C214 91 257 101 296 119
+             C331 135 352 151 377 151
+             L420 123
+             C392 96 357 79 318 66
+             C261 47 196 47 151 70
+             C90 102 79 165 111 215
+             C133 250 176 267 228 278
+             C279 289 320 301 335 329
+             C350 357 335 389 304 404
+             C267 422 215 412 174 394
+             C150 384 127 370 108 350
+             L78 392
+             C105 420 140 441 179 453
+             C239 472 309 466 355 440
+             C416 406 430 338 396 286
+             C373 250 332 231 281 220
+             C232 209 166 205 142 190 Z"
+          fill="url(#green)"/>
+    <path d="M111 356
+             C81 376 68 409 74 445
+             C109 436 135 418 150 391
+             C136 376 124 366 111 356 Z"
+          fill="url(#green2)"/>
+    <path d="M369 109
+             C390 118 411 124 442 124
+             C424 100 405 85 382 75 Z"
+          fill="url(#green2)"/>
+    <path d="M257 61
+             C214 61 183 92 183 132
+             C183 182 257 224 257 224
+             C257 224 331 182 331 132
+             C331 92 300 61 257 61 Z"
+          fill="#F8FAFC"/>
+    <circle cx="257" cy="130" r="24" fill="#06282A"/>
+    <g fill="#F8FAFC">
+      <path d="M175 345 h36 v58 h-36 z"/>
+      <path d="M208 318 h45 v85 h-45 z"/>
+      <path d="M220 300 h18 v18 h-18 z"/>
+      <path d="M273 339 h55 l-7 65 h-41 z"/>
+      <rect x="268" y="328" width="65" height="12" rx="6"/>
+      <rect x="286" y="316" width="29" height="10" rx="5"/>
+    </g>
+    <g fill="#06282A">
+      <rect x="226" y="333" width="8" height="10" rx="2"/>
+      <rect x="239" y="333" width="8" height="10" rx="2"/>
+      <rect x="226" y="353" width="8" height="10" rx="2"/>
+      <rect x="239" y="353" width="8" height="10" rx="2"/>
+      <rect x="285" y="350" width="6" height="34" rx="3"/>
+      <rect x="299" y="350" width="6" height="34" rx="3"/>
+      <rect x="313" y="350" width="6" height="34" rx="3"/>
+    </g>
+  </g>
+
+  <!-- wordmark -->
+  <text x="285" y="140"
+        font-family="Manrope, Arial, sans-serif"
+        font-size="92"
+        font-weight="700"
+        letter-spacing="-3"
+        fill="#071A2C">Swachh</text>
+  <text x="622" y="140"
+        font-family="Manrope, Arial, sans-serif"
+        font-size="92"
+        font-weight="700"
+        letter-spacing="-3"
+        fill="#00C853">Lens</text>
+
+  <text x="290" y="190"
+        font-family="Manrope, Arial, sans-serif"
+        font-size="22"
+        font-weight="500"
+        letter-spacing="5"
+        fill="#6B7280">CLEANER CITIES. SMARTER ACTIONS.</text>
+</svg>

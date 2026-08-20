@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">SwachhLens icon</title>
+  <desc id="desc">Green S-shaped civic cleanliness mark with a location pin, city buildings, and a waste bin.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#06282A"/>
+      <stop offset="1" stop-color="#03181A"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#00C853"/>
+      <stop offset="0.55" stop-color="#00E676"/>
+      <stop offset="1" stop-color="#00BFA5"/>
+    </linearGradient>
+    <linearGradient id="green2" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#00A844"/>
+      <stop offset="1" stop-color="#25F58A"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000000" flood-opacity=".28"/>
+    </filter>
+  </defs>
+  <rect x="8" y="8" width="496" height="496" rx="108" fill="url(#bg)"/>
+  <path d="M142 190 C125 158 142 120 177 106 C214 91 257 101 296 119 C331 135 352 151 377 151 L420 123 C392 96 357 79 318 66 C261 47 196 47 151 70 C90 102 79 165 111 215 C133 250 176 267 228 278 C279 289 320 301 335 329 C350 357 335 389 304 404 C267 422 215 412 174 394 C150 384 127 370 108 350 L78 392 C105 420 140 441 179 453 C239 472 309 466 355 440 C416 406 430 338 396 286 C373 250 332 231 281 220 C232 209 166 205 142 190 Z" fill="url(#green)" filter="url(#shadow)"/>
+  <path d="M111 356 C81 376 68 409 74 445 C109 436 135 418 150 391 C136 376 124 366 111 356 Z" fill="url(#green2)"/>
+  <path d="M369 109 C390 118 411 124 442 124 C424 100 405 85 382 75 Z" fill="url(#green2)"/>
+  <g filter="url(#shadow)">
+    <path d="M257 61 C214 61 183 92 183 132 C183 182 257 224 257 224 C257 224 331 182 331 132 C331 92 300 61 257 61 Z" fill="#F8FAFC"/>
+    <circle cx="257" cy="130" r="24" fill="#06282A"/>
+  </g>
+  <g fill="#F8FAFC">
+    <path d="M175 345h36v58h-36z"/>
+    <path d="M208 318h45v85h-45z"/>
+    <path d="M220 300h18v18h-18z"/>
+    <path d="M273 339h55l-7 65h-41z"/>
+    <rect x="268" y="328" width="65" height="12" rx="6"/>
+    <rect x="286" y="316" width="29" height="10" rx="5"/>
+  </g>
+  <g fill="#06282A">
+    <rect x="226" y="333" width="8" height="10" rx="1"/><rect x="239" y="333" width="8" height="10" rx="1"/>
+    <rect x="226" y="353" width="8" height="10" rx="1"/><rect x="239" y="353" width="8" height="10" rx="1"/>
+    <rect x="226" y="373" width="8" height="10" rx="1"/><rect x="239" y="373" width="8" height="10" rx="1"/>
+    <rect x="285" y="350" width="6" height="34" rx="3"/><rect x="299" y="350" width="6" height="34" rx="3"/><rect x="313" y="350" width="6" height="34" rx="3"/>
+  </g>
+</svg>
