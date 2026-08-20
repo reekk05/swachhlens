@@ -12,7 +12,6 @@ import CopilotWidget from "@/components/CopilotWidget";
 import WorkersTab from "@/components/WorkersTab";
 import AwaitingConfirmationCard from "@/components/AwaitingConfirmationCard";
 import CommandCenterTab from "@/components/CommandCenterTab";
-import Image from "next/image";
 
 const ComplaintMap = dynamic(() => import("@/components/ComplaintMap"), { ssr: false });
 const RouteMap = dynamic(() => import("@/components/RouteMap"), { ssr: false });
@@ -475,13 +474,12 @@ const awaitingComplaints = complaints.filter((c) => c.status === "awaiting_confi
   return (
     <div className="min-h-screen bg-[#0d1b0f] text-white p-10">
     <div className="flex justify-between items-center mb-6">
-<Image
+<img
   src="/swachhlens-logo.svg"
   alt="SwachhLens"
-  width={240}
-  height={60}
-  className="h-12 w-auto"
-/>      <button
+  className="h-25 w-auto"
+/> 
+     <button
         onClick={async () => {
           await supabase.auth.signOut();
           router.push("/login");

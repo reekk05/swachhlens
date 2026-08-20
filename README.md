@@ -4,7 +4,17 @@
 
 SwachhLens is an AI-powered waste response decision support system designed to transform citizen waste reports into actionable municipal operations.
 
-Instead of stopping at complaint submission, SwachhLens connects the complete response loop:
+Instead of stopping at complaint submission, Sw## Demo Script
+
+A 4–6 minute walkthrough that shows the whole loop, not isolated screens:
+
+1. **Citizen report** — sign in, capture a photo, confirm location, submit.
+2. **AI analysis** — show the category, volume, severity, and recommended action that came back.
+3. **Municipal decision** — switch to the dashboard, show the complaint land in the queue, check the map.
+4. **Dispatch** — select it, get an optimized route, confirm dispatch to a worker.
+5. **Field response** — switch to the worker app, open navigation, mark the stop complete with a photo.
+6. **Verification** — back on the dashboard, show before/after photos and the AI's note, then confirm resolution.
+   achhLens connects the complete response loop:
 
 **Report → AI analysis → Prioritization → Dispatch → Field navigation → Cleanup evidence → AI verification → Municipal confirmation**
 
@@ -271,33 +281,33 @@ SwachhLens/
 
 ### Citizen / Worker Mobile
 
-| Technology | Purpose |
-|---|---|
-| React Native | Mobile application UI |
-| Expo 54 | Development/runtime tooling |
-| Expo Location | GPS and worker location reporting |
-| Expo Image Picker | Photo capture/selection |
-| Supabase Auth | Authentication and sessions |
-| Supabase JS | Database/auth access |
-| AsyncStorage | Persistent mobile auth sessions |
-| Expo Font | Custom typography |
-| React Native URL Polyfill | Supabase compatibility |
+| Technology                | Purpose                           |
+| ------------------------- | --------------------------------- |
+| React Native              | Mobile application UI             |
+| Expo 54                   | Development/runtime tooling       |
+| Expo Location             | GPS and worker location reporting |
+| Expo Image Picker         | Photo capture/selection           |
+| Supabase Auth             | Authentication and sessions       |
+| Supabase JS               | Database/auth access              |
+| AsyncStorage              | Persistent mobile auth sessions   |
+| Expo Font                 | Custom typography                 |
+| React Native URL Polyfill | Supabase compatibility            |
 
 ### Municipal Dashboard
 
-| Technology | Purpose |
-|---|---|
-| Next.js 16 | Web application framework |
-| React 19 | UI |
-| TypeScript | Type safety |
-| Tailwind CSS | Styling |
-| Supabase SSR | Dashboard authentication/session handling |
-| Supabase JS | Database access |
-| Leaflet | Interactive complaint maps |
-| React Leaflet | React integration for Leaflet |
-| Lucide React | UI icons |
-| React Markdown | AI/coplanit response rendering |
-| OSRM | Road-route geometry |
+| Technology     | Purpose                                   |
+| -------------- | ----------------------------------------- |
+| Next.js 16     | Web application framework                 |
+| React 19       | UI                                        |
+| TypeScript     | Type safety                               |
+| Tailwind CSS   | Styling                                   |
+| Supabase SSR   | Dashboard authentication/session handling |
+| Supabase JS    | Database access                           |
+| Leaflet        | Interactive complaint maps                |
+| React Leaflet  | React integration for Leaflet             |
+| Lucide React   | UI icons                                  |
+| React Markdown | AI/coplanit response rendering            |
+| OSRM           | Road-route geometry                       |
 
 ---
 
