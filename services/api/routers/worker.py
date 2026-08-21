@@ -114,21 +114,28 @@ async def complete_stop(
     photo_bytes = await photo.read()
     photo_path = upload_complaint_photo(photo_bytes, photo.content_type)
 
-    try:
-        response = httpx.post(
-            f"{AI_ENGINE_URL}/verify/",
-            files={"photo": ("after.jpg", photo_bytes, photo.content_type)},
-            timeout=30.0,
-        )
-        response.raise_for_status()
-        verification = response.json()
-    except Exception as e:
+    verification = None
+    last_error = None
+
+    for timeout in [30.0, 45.0]:
+        try:
+            response = httpx.post(
+                f"{AI_ENGINE_URL}/verify/",
+                files={"photo": ("after.jpg", photo_bytes, photo.content_type)},
+                timeout=timeout,
+            )
+            response.raise_for_status()
+            verification = response.json()
+            break
+        except Exception as e:
+            last_error = e
+
+    if verification is None:
         verification = {
             "waste_removed": None,
             "confidence": 0,
-            "reasoning": f"Verification unavailable: {str(e)}",
+            "reasoning": f"Verification unavailable after retry ({str(last_error)}). Please inspect photos manually.",
         }
-
     db.execute(
         text("""
             UPDATE complaints
@@ -146,6 +153,16 @@ async def complete_stop(
     db.commit()
 
     return {"status": "awaiting_confirmation", "verification": verification}
+
+    if verification is None:
+        print(
+            f"[verify] AI engine call failed: {type(last_error).__name__}: {last_error}"
+        )
+        verification = {
+            "waste_removed": None,
+            "confidence": 0,
+            "reasoning": f"Verification unavailable after retry ({str(last_error)}). Please inspect photos manually.",
+        }
 
 
 class ChangePasswordRequest(BaseModel):
