@@ -64,11 +64,12 @@ export default function App() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (session) {
-      fetchStats();
-    }
-  }, [session]);
+useEffect(() => {
+  if (session && activeTab === "activity") {
+    fetchStats();
+    fetchMyReports().then(setMyReports);
+  }
+}, [activeTab, session]);
 
 useEffect(() => {
   if (!session) {
